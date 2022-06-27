@@ -1,0 +1,65 @@
+#include "matrices.h"
+
+int main()
+{
+	printf("Hello (matrix) world.\n");
+	
+	int i,j;
+	int n = 10;
+	
+	//initialise a square matrix of dimension n
+	double** m = allocmatrix(n,n);
+	
+	printmatrix("mymatrix.txt",n,n,m);
+
+	//now make a banded matrix
+	m[0][0] = 1;
+	m[0][1] = 0.25;
+	for(i=1;i<n-1;i++)
+	{
+		m[i][i-1] = 0.25;
+		m[i][i] = 1;
+		m[i][i+1] = 0.25;
+	}
+	m[n-1][n-2] = 0.25;
+	m[n-1][n-1] = 1;
+	
+	//print this matrix
+	printmatrix("mybandedmatrix.txt",n,n,m);
+	
+	//tranpose the banded matrix
+	double** tm = transposematrix(n,n,m);
+	
+	printmatrix("transposedbandedmatrix.txt",n,n,tm);
+	
+	//calculate the dot product of m and its transpose tm
+	double** dm = allocmatrix(n,n);
+	dotmatrixproduct(n,n,m,tm,dm);
+	
+	printmatrix("dotproductmatrix.txt",n,n,dm);
+
+	//calculate the inverse of m
+        double** mInverse = allocmatrix(n,n);
+        copymatrix(n,n,m,mInverse);
+	inverse(n,mInverse);
+
+	printmatrix("inversematrix.txt",n,n,mInverse);
+
+	//calculate the product of m and its inverse
+	double** A = allocmatrix(n,n);
+	matrixproduct(n,n,n,m,mInverse,A);
+
+	printmatrix("productmatrix.txt",n,n,A);
+
+        printf("The log of the determinant of A is: %.4lf\n",
+               logdet(n,m));
+
+	//free the memory
+	freematrix(n,m);
+	freematrix(n,tm);
+	freematrix(n,dm);
+	freematrix(n,mInverse);
+	freematrix(n,A);
+
+	return(1);
+}
