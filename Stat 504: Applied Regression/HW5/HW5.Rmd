@@ -1,0 +1,474 @@
+---
+title: "HW 5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Q1
+
+### 1.1
+
+```{r}
+#rm(list=ls())
+csv1 <- read.csv('model1.csv')
+summary(lm(y ~ d + x1, data = csv1))
+```
+ATE is 0.413. We want to adjust for non-causal correlation, X1, but not block causal paths through X2.
+
+### 1.2
+
+```{r}
+csv2 <- read.csv('model2.csv')
+summary(lm(y ~ d + x1 + x2, data = csv2))
+```
+ATE is 0.260606. We want to adjust for non-causal correlation.
+
+### 1.3
+
+```{r}
+csv3 <- read.csv('model3.csv')
+summary(lm(y ~ d + x1, data = csv3))
+```
+ATE is 0.061789. We want to adjust for unknown confounders.
+
+## Q2
+
+### 2.1
+
+We do not know U -- an unknown confounder. So, we cannot identify ATE via simple regression adjustment.
+
+### 2.2
+
+$Y_i = \lambda_{dy}D_i + U_{i} = \lambda_{dy}\lambda_{xd} U_{xi} + \lambda_{dy}U_i + U_i$. The bias is obviously larger when we have X adjusted: for $Y_i = \lambda_{dy}D_i + k X_i + U_{i} = \lambda_{dy}\lambda_{xd} U_{xi} + \lambda_{dy}U_i + U_i + k \lambda_{xd} U_{xi} + k U_i$. Therefore, there is a bias amplification effect.
+
+### 2.3
+
+$Cov (X,Y) = Cov(X, \lambda_{dy} D_i + U_i) =  Cov(X, \lambda_{dy} D_i) = \lambda_{dy} Cov(X, D_i)$
+
+Thus, $\lambda_{dy} = \frac{Cov (X,Y)}{Cov(X, D_i)} = \frac{\frac{Cov (X,Y)}{Var(X)}}{\frac{Cov (X,D_i)}{Var(X)}} = \frac{\beta_{yx}}{\beta_{dx}}$.
+
+## Q3
+
+### 3.1
+
+#### Function
+
+```{r}
+# function to compute k-fold CV MSE for polynomial regression
+cv_mse <- function(data, d = 1, k = 10){
+    
+    # create folds randomly
+    n <- nrow(data)
+    folds <- sample(rep(1:k, length = n))
+    
+    # create vector to store results
+    mse <- rep(NA, k)
+    for(j in 1:k){
+        
+        # train model on all folds except j
+        train <- folds != j
+        ols  <- lm(y ~ poly(x, degree = d, raw = T), data = data[train, ])
+        
+        # compute MSE on fold j (not used for training)
+        yhat <- predict(ols, newdata = data[!train, ])
+        mse[j]  <- mean((data$y[!train] - yhat)^2)
+  }
+    # compute average mse
+    mse.cv <- mean(mse)
+    return(mse.cv)
+}
+```
+
+#### DGP
+
+```{r}
+set.seed(42)
+n = 100
+x = runif(n, -4, 4)
+e = rnorm(n)
+
+#?ifelse
+
+# simulate DGP1
+y  <- -2*ifelse(x < -3, 1,0) + 2.55 * ifelse(x > -2, 1,0) - 2*ifelse(x > 0, 1,0) +
+    4 * ifelse(x > 2, 1,0) - ifelse(x > 3, 1,0) + e
+sim_data1 <- data.frame(x, y)
+
+# simulate DGP2
+y  <- 6 + 0.4 * x - 0.36 * x^2 + 0.006 * x^3 + e
+sim_data2 <- data.frame(x, y)
+
+# simulate DGP3
+y  <- 2.83*sin(pi/2*x) + e
+sim_data3 <- data.frame(x, y)
+
+# simulate DGP4
+y  <- 4*sin(3*pi *x) * ifelse(x > 0, 1,0) + e
+sim_data4 <- data.frame(x, y)
+```
+
+#### Sim data 1
+
+```{r}
+# plot size
+options(repr.plot.width = 10, repr.plot.height = 10)
+
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse1  <- sapply(degree, function(d) cv_mse(sim_data1, d))
+plot(degree,cv.mse1)
+
+# best degree
+best1 <- degree[which.min(cv.mse1)]
+best1
+
+# fit model using best degree
+ols1 <- lm(y ~ poly(x, degree = best1, raw = T), data = sim_data1)
+
+# predicted values
+yhat1 <- predict(ols1)
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data1, pch= 20)
+curve( -2*ifelse(x < -3, 1,0) + 2.55 * ifelse(x > -2, 1,0) - 2*ifelse(x > 0, 1,0) 
+       + 4 * ifelse(x > 2, 1,0) - ifelse(x > 3, 1,0) + e, col = "red", from = -4, to = 4, add = T, lwd = 4)
+lines(yhat1[order(x)] ~ sort(x), data= sim_data1, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+
+#### Sim data 2
+
+```{r}
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse2 <- sapply(degree, function(d) cv_mse(sim_data2, d))
+
+# best degree
+best2 <- degree[which.min(cv.mse2)]
+best2
+plot(degree,cv.mse2)
+
+# fit model using best degree
+ols2 <- lm(y ~ poly(x, degree = best2, raw = T), data = sim_data2)
+
+# predicted values
+yhat2 <- predict(ols2)
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data2, pch= 20)
+curve( 6 + 0.4 * x - 0.36 * x^2 + 0.006 * x^3 + e, col = "red", from = -4, to = 4, add = T, lwd = 4)
+lines(yhat2[order(x)] ~ sort(x), data= sim_data2, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+
+#### Sim data 3
+
+```{r}
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse3 <- sapply(degree, function(d) cv_mse(sim_data3, d))
+
+# best degree
+best3 <- degree[which.min(cv.mse3)]
+best3
+plot(degree,cv.mse3)
+
+# fit model using best degree
+ols3 <- lm(y ~ poly(x, degree = best3, raw = T), data = sim_data3)
+
+# predicted values
+yhat3 <- predict(ols3)
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data3, pch= 20)
+curve(2.83*sin(pi/2*x) + e, col = "red", from = -4, to = 4, add = T, lwd = 4)
+lines(yhat3[order(x)] ~ sort(x), data= sim_data3, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+#### Sim data 4
+
+```{r}
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse4 <- sapply(degree, function(d) cv_mse(sim_data4, d))
+
+# best degree
+best4 <- degree[which.min(cv.mse4)]
+best4
+plot(degree,cv.mse4)
+
+# fit model using best degree
+ols4 <- lm(y ~ poly(x, degree = best4, raw = T), data = sim_data4)
+
+# predicted values
+yhat4 <- predict(ols4)
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data4, pch= 20)
+curve(4*sin(3*pi *x) * ifelse(x > 0, 1,0) + e, col = "red", from = -4, to = 4, add = T, lwd = 4)
+lines(yhat4[order(x)] ~ sort(x), data= sim_data4, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+
+### 3.2
+
+#### DGP
+
+```{r}
+set.seed(42)
+n = 1000
+x = runif(n, -4, 4)
+e = rnorm(n)
+
+#?ifelse
+
+# simulate DGP1
+y  <- -2*ifelse(x < -3, 1,0) + 2.55 * ifelse(x > -2, 1,0) - 2*ifelse(x > 0, 1,0) +
+    4 * ifelse(x > 2, 1,0) - ifelse(x > 3, 1,0) + e
+sim_data1 <- data.frame(x, y)
+
+# simulate DGP2
+y  <- 6 + 0.4 * x - 0.36 * x^2 + 0.006 * x^3 + e
+sim_data2 <- data.frame(x, y)
+
+# simulate DGP3
+y  <- 2.83*sin(pi/2*x) + e
+sim_data3 <- data.frame(x, y)
+
+# simulate DGP4
+y  <- 4*sin(3*pi *x) * ifelse(x > 0, 1,0) + e
+sim_data4 <- data.frame(x, y)
+```
+
+#### Sim data 1
+
+```{r}
+# plot size
+options(repr.plot.width = 10, repr.plot.height = 10)
+
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse1  <- sapply(degree, function(d) cv_mse(sim_data1, d))
+plot(degree,cv.mse1)
+
+# best degree
+best1 <- degree[which.min(cv.mse1)]
+best1
+
+# fit model using best degree
+ols1 <- lm(y ~ poly(x, degree = best1, raw = T), data = sim_data1)
+
+# predicted values
+yhat1 <- predict(ols1)
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data1, pch= 20)
+curve( -2*ifelse(x < -3, 1,0) + 2.55 * ifelse(x > -2, 1,0) - 2*ifelse(x > 0, 1,0)+
+         4 * ifelse(x > 2, 1,0) - ifelse(x > 3, 1,0) + e, col = "red", from = -4, to = 4, n =n, add = T, lwd = 4)
+lines(yhat1[order(x)] ~ sort(x), data= sim_data1, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+
+#### Sim data 2
+
+```{r}
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse2 <- sapply(degree, function(d) cv_mse(sim_data2, d))
+
+# best degree
+best2 <- degree[which.min(cv.mse2)]
+best2
+plot(degree,cv.mse2)
+
+# fit model using best degree
+ols2 <- lm(y ~ poly(x, degree = best2, raw = T), data = sim_data2)
+
+# predicted values
+yhat2 <- predict(ols2)
+?curve
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data2, pch= 20)
+curve( 6 + 0.4 * x - 0.36 * x^2 + 0.006 * x^3 + e, col = "red", from = -4, to = 4, n =n, add = T, lwd = 4)
+lines(yhat2[order(x)] ~ sort(x), data= sim_data2, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+
+#### Sim data 3
+
+```{r}
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse3 <- sapply(degree, function(d) cv_mse(sim_data3, d))
+
+# best degree
+best3 <- degree[which.min(cv.mse3)]
+best3
+plot(degree,cv.mse3)
+
+# fit model using best degree
+ols3 <- lm(y ~ poly(x, degree = best3, raw = T), data = sim_data3)
+
+# predicted values
+yhat3 <- predict(ols3)
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data3, pch= 20)
+curve(2.83*sin(pi/2*x) + e, col = "red", from = -4, to = 4, n=n, add = T, lwd = 4)
+lines(yhat3[order(x)] ~ sort(x), data= sim_data3, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+
+#### Sim data 4
+
+```{r}
+# compute MSE's for d from 1 to 10
+degree <- 1:10
+cv.mse4 <- sapply(degree, function(d) cv_mse(sim_data4, d))
+
+# best degree
+best4 <- degree[which.min(cv.mse4)]
+best4
+plot(degree,cv.mse4)
+
+# fit model using best degree
+ols4 <- lm(y ~ poly(x, degree = best4, raw = T), data = sim_data4)
+
+# predicted values
+yhat4 <- predict(ols4)
+
+# plot against data and true CEF
+plot.new()
+plot(y ~ x, sim_data4, pch= 20)
+curve(4*sin(3*pi *x) * ifelse(x > 0, 1,0) + e, col = "red", n=n, from = -4, to = 4, add = T, lwd = 4)
+lines(yhat4[order(x)] ~ sort(x), data= sim_data4, col = "blue", lwd = 4)
+legend("topleft", col = c("red", "blue"), legend = c("true", "fitted"), lty = 1, bty = "n", lwd = 4)
+```
+
+The results are different because more data can better help us fit the models.
+
+## Q4
+
+### 4.1
+
+```{r}
+tecator <- read.csv('tecator.csv')
+ols_tecator <- lm(fat~ ., data= tecator)
+mean((predict(ols_tecator) - tecator$fat)^2)
+```
+
+This possibly is not a good estimate of out-of-sample performance because there are too many predictors.
+
+### 4.2
+
+```{r}
+cv_mse1 <- function(data, k = 5){
+    set.seed(59)
+    # create folds randomly
+    n <- nrow(data)
+    folds <- sample(rep(1:k, length = n))
+    
+    # create vector to store results
+    mse <- rep(NA, k)
+    for(j in 1:k){
+        
+        # train model on all folds except j
+        train <- folds != j
+        ols  <- lm(fat ~ ., data = data[train, ])
+        
+        # compute MSE on fold j (not used for training)
+        yhat <- predict(ols, newdata = data[!train, ])
+        mse[j]  <- mean((data$fat[!train] - yhat)^2)
+  }
+    # compute average mse
+    mse.cv <- mean(mse)
+    return(mse.cv)
+}
+cv_mse1(tecator)
+```
+
+The MSE is different from the OLS model, and interestingly larger. Possibly due to the variation in predictors.
+
+### 4.3
+
+```{r}
+# load package
+library(glmnet)
+
+# plot size
+options(repr.plot.width = 10, repr.plot.height = 10)
+
+# scipen 
+options(scipen = 99)
+
+# create model matrix
+X <- model.matrix(fat ~ . -1, data = tecator)
+y <- tecator$fat
+
+# alpha = 1 (Lasso)
+lasso <- glmnet(X, y, alpha = 1)
+plot(lasso, xvar = "lambda", label = T)
+
+cv.lasso <- cv.glmnet(X, y, type = "mse", nfolds = 5, nlambda = 100, lambda = seq(0, 1, by = 0.01), alpha = 1)
+
+cv.lasso
+plot(cv.lasso)
+
+coef(cv.lasso, s = "lambda.min")
+```
+
+With 5-fold cross validation, the MSE of the best Lasso model where lambda ranges from 0 to 1 is 13.60371 as calculated in b, with lambda = 0.
+
+### 4.4
+
+```{r}
+# alpha = 0 (Ridge)
+ridge <- glmnet(X, y, alpha = 0)
+plot(ridge, xvar = "lambda", label = T)
+
+cv.ridge <- cv.glmnet(X, y, type = "mse", nfolds = 5, nlambda = 100, lambda = seq(0, 1, by = 0.01), alpha = 0)
+
+cv.ridge
+plot(cv.ridge)
+
+coef(cv.ridge, s = "lambda.min")
+```
+
+With 5-fold cross validation, the MSE of the best ridge model where lambda ranges from 0 to 1 is 13.60371 as calculated in b, with lambda = 0.
+
+
+## Q5
+
+### 5.1
+
+The ATE is 0. Because D and Y are independent. We can still run Y on D and we only include D, but the effect is not causal.
+
+### 5.2
+
+```{r}
+lasso <- read.csv('lasso.csv')
+cv.lasso1 <- cv.glmnet(X, y, type = "mse", alpha = 1)
+
+cv.lasso1
+plot(cv.lasso1, xvar = "lambda", label = T)
+
+coef(cv.lasso1, s = "lambda.min")
+```
+
+There are 22 variables selected by Lasso, as shown above.
+
+### 5.3
+
+No, this is not a good estimate of the causal effect because the coefficients are only used for prediction. It is not specific to Lasso.
+
