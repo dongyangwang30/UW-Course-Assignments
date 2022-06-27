@@ -1,0 +1,185 @@
+---
+title: "HW1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Q2
+
+```{r}
+rm(list =ls())
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+```
+
+```{r}
+sample_size = c(100,500,1000,5000,10000)
+total_res = list()
+
+test_vector = seq(0.001, 5.001,0.1)
+bandwidth1 = data.frame()
+bandwidth2 = data.frame()
+
+for (i in 1:3){
+  res = data.frame()
+  for (j in 1:length(sample_size)){
+  set.seed(100)
+  n = sample_size[j]
+  x = runif(n)
+  e = rnorm(n)
+  
+  data1 = data.frame(y = 2*x+e, fx = 2*x, x = x) %>% arrange(x)
+  data2 = data.frame(y = sin(2*pi*x)+e, fx = sin(2*pi*x), x = x) %>% arrange(x)
+  data3 = data.frame(y = sin(30*x)+e, fx = sin(30*x), x = x) %>% arrange(x)
+  data = list(data1, data2, data3)
+
+  # Linear Regression
+  linear_model <- lm(y~x, data = data[[i]])
+  res[j,1] = mean((data[[i]]$fx - predict(linear_model))^2)
+  
+  # Polynomial Regression
+  for (d in 2:5){
+    ols  <- lm(y ~ poly(x, degree = d, raw = T), data = data[[i]])
+    res[j,d]  <- mean((data[[i]]$fx - predict(ols))^2)
+  }
+  
+  # Box Kernel
+  mseb = c()
+  for (c in test_vector){
+    Box = ksmooth(data[[i]]$x, data[[i]]$y, kernel = 'box', 
+                bandwidth = c*n^(-1/3), x.points = data[[i]]$x)
+    mse_b = mean((data[[i]]$fx - Box$y)^2)
+    mseb = c(mseb, mse_b)
+  }
+  bandwidth1[i,j] =test_vector[which(mseb == min(mseb))]
+  res[j,6] = min(mseb)
+
+  # Gaussian Kernel
+  mseg = c()
+  for (c in test_vector){
+    Gaussian = ksmooth(data[[i]]$x, data[[i]]$y, kernel = 'normal', 
+                bandwidth = c*n^(-1/3), x.points = data[[i]]$x)
+    mse_g = mean((data[[i]]$fx - Gaussian$y)^2)
+    mseg = c(mseg, mse_g)
+  }
+  bandwidth2[i,j] = test_vector[which(mseg == min(mseg))]
+  res[j,7] = min(mseg)
+
+  }
+  total_res[[i]] = res
+}
+
+total_res
+
+```
+
+For the bandwidth, I have used the following code for calculation. Basically, I tried to obtain the lowest training MSE while simulating the data. Admittedly, this practice is not perfect because we want to use cross validation when possible; but this practice still works because this is a simulation study. The choices I made are based the theretical framework that the bandwidth is a multiple of the optimal bandwidth, $h = n^{-1/3}$.  The bandwidth I used is reported in following tables: the first for the box kernel, the second for the Gaussian kernel. 
+
+```{r}
+sample <- matrix(rep(sample_size,length(sample_size)), byrow = T, 
+                 ncol = length(sample_size), nrow = length(sample_size))
+optimal_bw1 = bandwidth1 * sample^(-1/3)
+optimal_bw1
+optimal_bw2 = bandwidth2 * sample^(-1/3)
+optimal_bw2
+```
+
+The plots are as follows:
+
+```{r}
+df1 = melt(total_res[[1]])
+df1$index = rep(as.factor(sample_size),7)
+
+ggplot(df1, aes(index, value,color = variable)) +
+  geom_point() +
+  ggtitle("Plot 1") 
+
+df2 = melt(total_res[[2]])
+df2$index = rep(as.factor(sample_size),7)
+
+ggplot(df2, aes(index, value,color = variable)) +
+  geom_point() +
+  ggtitle("Plot 2") 
+
+df3 = melt(total_res[[3]])
+df3$index = rep(as.factor(sample_size),7)
+
+ggplot(df3, aes(index, value,color = variable)) +
+  geom_point()  +
+  ggtitle("Plot 3") 
+```
+
+In the above plots, Plot 1-3 each shows the MSE for different models with different datasets. V1 stands for linear regression, V2-V5 are polynomial regressions with degrees 2-5, V6 is the box kernel NW model, V7 is the gaussian kernel NW model. Plot 1 has the 2x data, plot 2 indicates $sin(2 \pi x )$ data, plot 3 indicates $sin(30 x )$ data.
+
+The plots indicate that in general, an increase in sample size leads to decrease in the MSE. But it also depends on the data. For exmaple, when data is linear, all models work and the MSEs converge. However, when data is not linear, as in case 2, low-degree (degree = 2) polynomial model and simple linear regression would fail to converge to 0 and instead converge to 0.2. Similarly, in case 3, all polynomial models and the simple linear regression model would fail to converge to 0 and instead to somewhere between 0.45 and 0.5. The NW methods, however, will always converge to 0 regardless of the dataset. Moreover, sometimes more complex model (high degree polynomial) will actually increase the MSE if relationship is simple(linear).
+
+```{r, include = F}
+n = 10000
+i = 1
+set.seed(1)
+x = runif(n)
+e = rnorm(n)
+plot(x,sin(2*pi*x))
+data1 = data.frame(y = 2*x+e, fx = 2*x) %>% arrange(fx)
+data2 = data.frame(y = sin(2*pi*x)+e, fx = sin(2*pi*x))  %>% arrange(fx)
+data3 = data.frame(y = sin(30*x)+e, fx = sin(30*x)) %>% arrange(fx)
+plot(data1$fx, data1$y)
+plot(data2$fx, data2$y)
+plot(data3$fx, data3$y)
+data = list(data1, data2, data3)
+
+# Linear Regression
+linear_model <- lm(y~fx, data = data[[2]])
+mean((data[[2]]$fx - predict(linear_model))^2)
+plot(data[[2]]$fx,data[[2]]$y)
+lines(predict(linear_model))
+Box = ksmooth(data[[1]]$fx, data[[1]]$y, kernel = 'box', 
+                bandwidth = n^(-1/3), x.points = data[[1]]$fx)
+mean((data[[1]]$y - Box$y)^2)
+
+```
+
+## Q4
+
+Attempted, but not solved. So did not include the code.
+
+### Q4.a
+
+```{r, include = F}
+df <- read.table('fev.txt',header = T)
+# plot(df$height, df$fev)
+
+df = df %>% arrange(df$height)
+summary(df)
+
+h <- seq(0.5,28,0.1)
+mse <- NULL
+for (item in h){
+  model = ksmooth(df$height, df$fev, kernel = 'box', bandwidth = item)
+  y_pred = model$y
+  
+  
+  mse = c(mse, sum((df$fev - y_pred)^2, na.rm = T))
+}
+
+index = which(mse == min(mse))
+best_h = h[index]
+nrow(df)
+
+
+```
+
+### Q4.b
+
+
+```{r, include = F}
+#install.packages('npmlda')
+library(npmlda)
+K_Epa <- function(z, h = 1) {3 / (4 * h) * (1 - (z / h)^2) * (abs(z) < h)}
+?kernel.fit
+
+```
