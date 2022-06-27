@@ -1,0 +1,20 @@
+MATRICES_LSTDFLG = -lstdc++ -llapack -llapack_atlas -lcblas -lm
+MATRICES_INCLUDE = -I/usr/include/ -I/usr/include/atlas/
+MATRICES_LIB = -L/usr/lib/atlas/ -L/usr/lib/atlas-base/
+MATRICES_OBJS = matrices
+
+all:	${MATRICES_OBJS}
+	rm -f *.o
+
+matrices.o: matrices.cpp matrices.h
+	gcc -g -c matrices.cpp -o matrices.o ${MATRICES_INCLUDE}
+
+main.o: main.cpp matrices.h
+	gcc -g -c main.cpp -o main.o ${MATRICES_INCLUDE}
+
+matrices: main.o matrices.o
+	gcc main.o matrices.o -o matrices ${MATRICES_LIB} ${MATRICES_LSTDFLG}
+
+clean:
+	rm -f *.o
+	rm -f ${MATRICES_OBJS}

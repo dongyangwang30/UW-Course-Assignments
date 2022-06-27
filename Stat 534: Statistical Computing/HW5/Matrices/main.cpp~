@@ -1,0 +1,52 @@
+#include "matrices.h"
+
+int main()
+{
+	printf("Hello (matrix) world.\n");
+	
+	int i,j;
+	int n = 10;
+	
+	//initialise a square matrix of dimension n
+	double** m = allocmatrix(n,n);
+	
+	printmatrix("mymatrix.txt",n,n,m);
+
+	//now make a banded matrix
+	m[0][0] = 1;
+	m[0][1] = 2;
+	for(i=1;i<n-1;i++)
+	{
+		m[i][i-1] = -2;
+		m[i][i] = 1;
+		m[i][i+1] = 2;
+	}
+	m[n-1][n-2] = -2;
+	m[n-1][n-1] = 1;
+	
+	//print this matrix
+	printmatrix("mybandedmatrix.txt",n,n,m);
+	
+	//tranpose the banded matrix
+	double** tm = transposematrix(n,n,m);
+	
+	printmatrix("transposedbandedmatrix.txt",n,n,tm);
+	
+	//calculate the dot product of m and its transpose tm
+	double** dm = allocmatrix(n,n);
+	dotmatrixproduct(n,n,m,tm,dm);
+	
+	printmatrix("dotproductmatrix.txt",n,n,dm);
+
+	//calculate the inverse of m
+	
+	//calculate the product of m and its inverse
+	
+	
+	//free the memory
+	freematrix(n,m);
+	freematrix(n,tm);
+	freematrix(n,dm);
+	
+	return(1);
+}
