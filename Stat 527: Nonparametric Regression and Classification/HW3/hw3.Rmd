@@ -1,0 +1,216 @@
+---
+title: "HW3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Q2
+
+### Initializing Environment
+```{r}
+# rm(list =ls())
+library(tidyverse)
+library(reshape2)
+```
+
+### Data Generating Functions
+```{r}
+#rm(list =ls())
+
+lin <- function(x) { 
+  return(2*x) 
+} 
+ 
+sin_2pi <- function(x) { 
+  return(sin(2*pi*x)) 
+} 
+ 
+sin_30 <- function(x) { 
+  return(sin(30*x)) 
+} 
+```
+
+### Choosing bandwidth for LOESS to minimize MSE
+```{r}
+# Set seed for reproducibility
+set.seed(42)
+
+# Check the best bandwidth for LOESS with degree 0,1,2
+n = 1e4
+
+# Use the most wiggly function to ensure most appropriate bandwidth
+x <- sort(runif(n))
+true_x <- sin_30(x)
+eps <- rnorm(n) 
+y <- true_x+ eps
+mse = c()
+interval = seq(0.1,10,0.1)
+
+# Degree 0
+for (i in 1:100){
+  model <- loess(y ~ x, span = (interval[i]) * n^(-1/3),method = c("loess"), degree =0)
+  mse[i] = mean((predict(model, newdata = data.frame(x)) - true_x)^2)
+}
+# Here we select the bandwidth that minimizes the MSE: The one selected has coefficient 4
+interval[which(mse == min(mse))]
+
+# Degree 1
+for (i in 1:100){
+  model <- loess(y ~ x, span = (interval[i]) * n^(-1/3),method = c("loess"), degree =1)
+  mse[i] = mean((predict(model, newdata = data.frame(x)) - true_x)^2)
+}
+# Here we select the bandwidth that minimizes the MSE: The one selected has coefficient 4
+interval[which(mse == min(mse))]
+
+# Degree 2
+for (i in 1:100){
+  model <- loess(y ~ x, span = (interval[i]) * n^(-1/5),method = c("loess"), degree =2)
+  mse[i] = mean((predict(model, newdata = data.frame(x)) - true_x)^2)
+}
+# Here we select the bandwidth that minimizes the MSE: The one selected has coefficient 3
+interval[which(mse == min(mse))]
+
+#model <-loess(y ~ x, span = (interval[2]) * n^(-1/3),method = c("loess"))
+#mse
+```
+Here I used the second data generating function to find the coefficient that minimizes MSE. The main part of the bandwidth is given by $h = n^{-1/(2k+1)}$. So for the degree 1 it is $n^{(-1/3)}$ and for degree 2 it is $n^{(-1/5)}$. After obtaining the coefficient I can use it in the following simulate function.
+
+```{r}
+simulate <- function(n, func) { 
+  #sampling x and epsilon 
+  #need to sort x because the kernel functions output values with ordered x!! 
+  x <- sort(runif(n)) 
+  eps <- rnorm(n) 
+   
+  #calculate y 
+  y <- func(x) + eps 
+   
+  #fit linear and polynomial models 
+  y_1 <- lm(y~x)$fitted.values 
+  y_2 <- lm(y~poly(x,2))$fitted.values 
+  y_3 <- lm(y~poly(x,3))$fitted.values 
+  y_4 <- lm(y~poly(x,4))$fitted.values 
+  y_5 <- lm(y~poly(x,5))$fitted.values 
+  
+  #fit LOESS models 
+  loess_0 <- loess(y ~ x, span =  0.8*n^(-1/3),method = c("loess"), degree = 0)
+  loess0_pred <- predict(loess_0, newdata = data.frame(x))
+  loess_1 <- loess(y ~ x, span =  n^(-1/3),method = c("loess"), degree = 1)
+  loess1_pred <- predict(loess_1, newdata = data.frame(x))
+  loess_2 <- loess(y ~ x, span =  0.7 * n^(-1/5),method = c("loess"), degree = 2)
+  loess2_pred <- predict(loess_2, newdata = data.frame(x))
+  
+  #choice of kernel bandwidth 
+  h<- 0.5*n^(-1/3) 
+   
+  #fit NW estimators with box and Gaussian kernels 
+  y_box <- ksmooth(x, y, kernel = "box", x.points = x, bandwidth = h)$y 
+   
+  y_gauss <- ksmooth(x, y, kernel = "normal", x.points = x, bandwidth = h)$y 
+   
+  #calculate and format the MSEs 
+  mse <- colMeans( (cbind(y_1,y_2,y_3,y_4,y_5,y_box,y_gauss,
+                          loess0_pred, loess1_pred,loess2_pred) - func(x))^2 ) 
+  names(mse) <- c("Linear", paste("Poly Reg:", 2:5), 
+                  "NW-Box","NW-Gaussian", paste("loess:", 0:2))
+  
+  return(mse) 
+}
+```
+
+### Writing replicate function to prepare for simulation
+```{r}
+replicate_func <- function(m,n,func){
+  mse <- colMeans(matrix(replicate(m, simulate(n, func)), ncol = 10, byrow = TRUE)) 
+  names(mse) <- c("Linear", paste("Poly Deg:", 2:5), "NW-Box","NW-Gaussian", paste("loess:", 0:2))
+  return(mse)
+}
+
+#mse <-colMeans(matrix(replicate(m, simulate(1000, lin)), ncol = 10, byrow = TRUE)) 
+m = 100
+sample_size = c(100,500,1000,5000,10000)
+```
+
+### First case
+```{r}
+result1 = list()
+for(i in 1:length(sample_size)){
+  result1[[i]] = replicate_func(m,sample_size[i], lin)
+}
+result1
+```
+
+
+### Second case
+```{r}
+result2 = list()
+for(i in 1:length(sample_size)){
+  result2[[i]] = replicate_func(m,sample_size[i], sin_2pi)
+}
+result2
+```
+
+
+### Third case
+```{r}
+result3 = list()
+for(i in 1:length(sample_size)){
+  result3[[i]] = replicate_func(m,sample_size[i], sin_30)
+}
+result3
+```
+
+
+### Tables
+```{r}
+res1 = data.frame(result1)
+res2 = data.frame(result2)
+res3 = data.frame(result3)
+
+
+names(res1) <- paste0("col", 1:5)
+names(res2) <- paste0("col", 1:5)
+names(res3) <- paste0("col", 1:5)
+
+res1 = t(res1)
+res2 = t(res2)
+res3 = t(res3)
+```
+
+
+### Plots
+
+#### Linear
+```{r}
+df1 = melt(res1)
+df1$index = rep(as.factor(sample_size),10)
+ggplot(df1,aes(x=index, y = value, color = Var2, group = Var2)) + geom_point() + geom_line()
+
+```
+
+#### sin 2 pi
+```{r}
+df2 = melt(res2)
+df2$index = rep(as.factor(sample_size),10)
+ggplot(df2,aes(x=index, y = value, color = Var2, group = Var2)) + geom_point() + geom_line()
+
+```
+
+#### sin 30
+```{r}
+df3 = melt(res3)
+df3$index = rep(as.factor(sample_size),10)
+ggplot(df3,aes(x=index, y = value, color = Var2, group = Var2)) + geom_point() + geom_line()
+
+```
+
+
+### Comments
+The loess functions, compared with other methods, seem to perform well in general. And they perform especially well when the true function is most wiggly, potentially because the bandwidths were selected using the sin(30) data.
+
+In general, the loess functions do not perform well if the sample size is small. One limitation is possibly that the R function LOESS only can go up to two degrees in calculating the curve. As sample size goes up, however, the loess seems to perform better than they do in smaller samples. 
+
+Based on our finite data, the LOESS outperforms the kernels as sample size increases. Note that loess with degree 0 is the NW estimator with a different bandwidth, and therefore they are pretty similar in performance. 
