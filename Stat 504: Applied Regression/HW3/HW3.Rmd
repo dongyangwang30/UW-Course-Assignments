@@ -1,0 +1,363 @@
+---
+title: "HW 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Q1
+
+### 1.1
+
+Taking derivative of $arg min_{\beta} E((Y_i-X_i^T\beta)^2)$ we obtain $E(X_i(Y_i-X_i \beta)) = 0$. Then we have
+\begin{align*}
+    E(X_i(Y_i-X_i \beta)) &= 0\\
+    E(X_iY_i) - E(X_i X_i^T \beta) &= 0\\
+    E(X_iY_i) &= E(X_i X_i^T)\beta\\
+    \beta_{ols} &= (E(X_i X_i^T))^{-1} E(X_iY_i)
+\end{align*}
+
+### 1.2
+
+\begin{align*}
+    Y_i &= X_i^T\beta^* + \epsilon_i\\
+    X_i Y_i &= X_i X_i^T\beta^* +  X_i \epsilon_i\\
+    E(X_i Y_i) &= E(X_i X_i^T)\beta^*\\
+    \beta^* &=  E(X_i X_i^T)^{-1}E(X_i Y_i)\\
+    \beta^* &= \beta_{ols}
+\end{align*}
+
+### 1.3
+
+Regarding $E(Y_i|X_i)$ as $Y_i$, 
+\begin{align*}
+    \beta_1 &= (E(X_i X_i^T))^{-1} E(X_iE(Y_i|X_i))\\
+    &= (E(X_i X_i^T))^{-1} E(E(X_iY_i|X_i))\\
+    &= (E(X_i X_i^T))^{-1}E(X_iY_i)\\
+    &= \beta_{ols}
+\end{align*}
+
+### 1.4
+
+Let
+
+$\beta_0 = E(Y_i | X_{1i} = 0, X_{2i} = 0)$,
+
+$\beta_1 = E(Y_i | X_{1i} = 1, X_{2i} = 0) - \beta_0$,
+
+$\beta_2 = E(Y_i | X_{1i} = 0, X_{2i} = 1) - \beta_0$,
+
+$\beta_3 = E(Y_i | X_{1i} = 1, X_{2i} = 1) - \beta_0 -\beta_1 * X_{1i} - \beta_2 * X_{2i}$
+
+Therefore,
+\begin{align*}
+    E(Y_i | X_{1i}, X_{2i}) &= E(Y_i | X_{1i} = 0, X_{2i} = 0) \\
+    &+ [E(Y_i | X_{1i} = 1, X_{2i} = 0) - E(Y_i | X_{1i} = 0, X_{2i} = 0)] * X_{1i} \\
+    &+ [E(Y_i | X_{1i} = 0, X_{2i} = 1) - E(Y_i | X_{1i} = 0, X_{2i} = 0)]* X_{2i} \\
+    &+ (E(Y_i | X_{1i} = 1, X_{2i} = 1) - \{E(Y_i | X_{1i} = 0, X_{2i} = 0) \\
+    &+ [E(Y_i | X_{1i} = 1, X_{2i} = 0) - E(Y_i | X_{1i} = 0, X_{2i} = 0)] * X_{1i} \\
+    &+ [E(Y_i | X_{1i} = 0, X_{2i} = 1) - E(Y_i | X_{1i} = 0, X_{2i} = 0)]* X_{2i}\}) * X_{1i} * X_{2i}
+\end{align*}
+
+Therefore, the CEF $E(Y_i | X_{1i}, X_{2i})$  can be written as a linear function of $X = [1, X_{1i}, X_{2i}, X_{1i} * X_{2i}]$.
+
+### 1.5
+
+We can set $Z_i= X_{1i}^2$ and run the linear regression $Y_i = \beta_0 + \beta_1 X_{1i} + \beta_2 Z_i$ and this is just a multivariate linear regression that we can use to estimate the CEF.
+
+### 1.6
+
+Let
+$\beta_1 = E(X_iX_i^T)^{-1}E(X_iY_i)$,
+$\beta_2 = E(X_iX_i^T)^{-1}E(X_iD_i)$
+
+\begin{align*}
+    Cov(Y_i, D_i^{\perp X_i}) &= Cov(X_i\beta^T + e_i, D_i^{\perp X_i}) \\
+    &= Cov(X_i\beta^T , D_i^{\perp X_i}) + Cov(e_i, D_i^{\perp X_i})\\
+    &= Cov(X_{i}\beta_r + D_{i}\tau_r, D_i^{\perp X_i})\\
+    &= Cov(X_{i}\beta_r, D_i^{\perp X_i}) + Cov( D_{i}\tau_r, D_i^{\perp X_i})\\
+    &= Cov(D_i\tau_r, D_i^{\perp X_i})\\
+    &= \tau_r Cov(D_i^{\perp X_i}, D_i^{\perp X_i})\\
+    &= \tau_r Var(D_i^{\perp X_i})
+\end{align*}
+
+By properties of residuals, $Cov(Y_i^{\perp X_i}, D_i^{\perp X_i}) = Cov(Y_i, D_i^{\perp X_i})$. So, $\tau_r = \frac{Cov(Y_i^{\perp X_i}, D_i^{\perp X_i}) }{Var(D_i^{\perp X_i})}$.
+
+### 1.7
+
+\begin{align*}
+    \tau_r &=  \frac{Cov(Y_i^{\perp X_i}, D_i^{\perp X_i}) }{Var(D_i^{\perp X_i})} \\
+    &= \frac{Cov(\tau D_i^{\perp X_i} + \gamma Z_i^{\perp X_i} + e_i, D_i^{\perp X_i}) }{Var(D_i^{\perp X_i})} \\
+    &= \frac{Cov(\tau D_i^{\perp X_i} , D_i^{\perp X_i}) }{Var(D_i^{\perp X_i})}  + \frac{Cov(\gamma Z_i^{\perp X_i}, D_i^{\perp X_i}) }{Var(D_i^{\perp X_i})} \\
+    &= \tau + \gamma \frac{Cov( Z_i^{\perp X_i}, D_i^{\perp X_i}) }{Var(D_i^{\perp X_i})}\\
+    &= \tau + \gamma \delta
+\end{align*}
+where $\delta = \frac{Cov( Z_i^{\perp X_i}, D_i^{\perp X_i}) }{Var(D_i^{\perp X_i})}$.
+
+### 1.8
+
+#### a
+With $V = X_1 + X_2$,
+\begin{align*}
+    OLS(V|Z) &= Z^T \frac{Cov(V,Z)}{Var(Z)}\\
+    &= Z^T \frac{Cov(X_1,Z)}{Var(Z)} + Z^T \frac{Cov(X_2,Z)}{Var(Z)}\\
+    &=  OLS(X_1|Z) + OLS(X_2|Z)
+\end{align*}
+
+Thus, $V^{\perp Z} = V - OLS(V|Z) = X_1 + X_2 - OLS(X_1|Z) - OLS(X_2|Z) = X_1^{\perp Z} + X_2^{\perp Z}$.
+
+#### b
+\begin{align*}
+    e^{\perp Z} &= e - OLS(e|Z) \\
+    &=e - Z^T \frac{Cov(e, Z)}{Var(Z)}\\
+    &= e
+\end{align*}
+
+#### c
+\begin{align*}
+    Z^{\perp Z} &= Z - OLS(Z|Z)\\
+    &= Z - Z^T \frac{Cov(Z,Z)}{Var(Z)}\\
+    &= Z- Z\\
+    &= 0
+\end{align*}
+
+## Q2
+
+### 2.1
+
+#### a
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+df = read.csv('qog_jan16.csv')
+
+summary(df)
+df$y_i <- df$wdi_mortinftot
+df$x_i <- df$epi_watsup
+df$z_i <- df$wdi_accelectr
+
+attach(df)
+#hist(x_i)
+#hist(y_i)
+plot(x_i, y_i)
+detach(df)
+```
+There appears a negative correlation between infant mortality and access to clean water. Better the access to clean water, lower rates of infant mortality.
+
+#### b
+```{r}
+attach(df)
+linear_model = lm(y_i ~ x_i, data = df)
+summary(linear_model)
+coef(linear_model)
+predict_linear1 <- predict(linear_model, newdata = data.frame(x_i =  x_i))
+
+plot(x_i, y_i)
+lines(x_i, predict_linear1)
+detach(df)
+```
+The estimate for the slope is -0.60126, for the intercept is 59.58323. For countries with no access to clean water, the infant mortality rate is expected to be 59.58323%. Also, one percentage point increase in access to clean water is associated with 0.60126 percentage point decrease in infant mortality rate.
+
+#### c
+```{r}
+set.seed(42)
+B = 10000
+attach(df)
+intercept_linear = rep(NA,B)
+slope_linear = rep(NA,B)
+for (i in 1:B){
+  index = sample(c(1:184), size = 184, replace = T)
+  x.boot = x_i[index]
+  y.boot = y_i[index]
+  model = lm(y.boot ~ x.boot)
+  intercept_linear[i] =coef(model)[1]
+  slope_linear[i] =coef(model)[2]
+}
+detach(df)
+
+#summary(slope_linear)
+quantile(intercept_linear, c(0.025,0.975))
+quantile(slope_linear, c(0.025,0.975))
+```
+The 95% confidence interval for intercept is [53.98365, 65.03107]; for slope is [-0.6703358, -0.5319351].
+
+#### d
+```{r}
+attach(df)
+
+linear_model2 <- lm(y_i ~ x_i + z_i)
+
+summary(linear_model2)
+
+library("scatterplot3d")
+s3d <- scatterplot3d(x= x_i, y=z_i, z=y_i)
+s3d$plane3d(linear_model2, draw_polygon = TRUE, draw_lines = TRUE, 
+            polygon_args = list(col = rgb(.1, .2, .7, .5)))
+
+detach(df)
+```
+Previously, the coefficient for x_i is -0.60126, but now it is -0.34962. It is not the same as before and the magnitude is lower. Its interpretation is that, if z_i stays the same, one percentage point increase in access to clean water is associated with 0.34962 percentage point decrease in infant mortality rate.
+
+#### e
+```{r}
+attach(df)
+
+linear_model3 <- lm(x_i ~ z_i)
+x_z <- resid(linear_model3)
+#summary(linear_model3)
+#summary(x_z)
+
+linear_model4 <- lm(y_i ~ z_i)
+y_z <- resid(linear_model4)
+
+plot(x_z, y_z)
+linear_model5 <- lm(y_z ~ x_z)
+predict_linear5 <- predict(linear_model5, newdata = data.frame(x_z =  x_z))
+lines(x_z,predict_linear5)
+
+# check
+coef(linear_model5)[2]
+detach(df)
+```
+Yes, the coefficient is identical to the previous regression coefficient of X_i.
+
+#### f
+```{r}
+attach(df)
+linear_model6 <- lm(z_i ~ x_i)
+coef(linear_model6)[2]
+
+c(coef(linear_model)[2] - coef(linear_model6)[2] *coef(linear_model2)[3], coef(linear_model2)[2])
+detach(df)
+```
+The estimated value is 0.6850051. This means that one percentage point increase in access to clean water is associated with a 0.6850051 percentage point increase in access to electricity.
+
+Both ways, the result is -0.3496213.
+
+### 2.2
+
+#### a
+```{r}
+attach(df)
+quadratic_model_a <- lm(y_i ~ x_i + I(x_i^2))
+summary(quadratic_model_a)
+
+predict_quadratic1 <- predict(quadratic_model_a, newdata = data.frame(x_i = sort(x_i)))
+
+plot(x_i, y_i)
+lines(sort(x_i),predict_quadratic1)
+
+#reorder <- order(x_i)
+#lines(x_i[reorder], predict_quadratic1[reorder])
+
+detach(df)
+```
+This seems to fit the data better. The intercept is 71.750805, estimator for x_i is -1.255507, for x-squared is 0.005898. In this case, we cannot simply interpret the coefficient for the quadratic term. It makes no practical sense when we interpret it as the "one unit change in the square of access to clean water is associated with a 0.005898 increase in infant mortality." The trend is obvious that infant mortality is negatively correlated with access to clean water. Moreover, the quadratic term of a percentage is not intuitive to understand.
+
+#### b
+
+\begin{align*}
+    APD_{yx} &= E(\frac{d E(Y_i|X_i)}{dX_i}) \\
+    &= E( \frac{d (\beta_{y1.xx^2}  +\beta_{yx.1x^2} X_i+  \beta_{yx^2.1x} X_i^2 )}{dX_i})\\
+    &= E(\beta_{yx.1x^2} + 2 \beta_{yx^2.1x} X_i)\\
+    &= \beta_{yx.1x^2} +2 \beta_{yx^2.1x} E(X_i)
+\end{align*}
+
+#### c
+```{r}
+set.seed(42)
+B = 10000
+attach(df)
+intercept_quad = rep(NA,B)
+slope_quad = rep(NA,B)
+apd = rep(NA,B)
+for (i in 1:B){
+  index = sample(c(1:184), size = 184, replace = T)
+  x.boot = x_i[index]
+  y.boot = y_i[index]
+  model <- lm(y.boot ~ x.boot + I(x.boot^2))
+  intercept_quad[i] =coef(model)[2]
+  slope_quad[i] =coef(model)[3]
+  apd[i] = intercept_quad[i] + 2*slope_quad[i]*mean(x.boot)
+}
+detach(df)
+
+quantile(apd, c(0.025,0.975))
+summary(apd)
+```
+The confidence interval is [-0.6929937, -0.5219206]. The bootstrap estimate is quite close to the coefficient of the simple linear model.
+
+#### d
+```{r}
+attach(df)
+h = 0.0001
+predict_quadratic2 <- predict(quadratic_model_a, newdata = data.frame(x_i = sort(x_i+h)))
+predict_quadratic3 <- predict(quadratic_model_a, newdata = data.frame(x_i = sort(x_i-h)))
+
+res = mean((predict_quadratic2-predict_quadratic3)/(2*h))
+res
+detach(df)
+```
+This is also a pretty good estimate for -0.601256. 
+
+#### e
+```{r}
+attach(df)
+quadratic_model_e <- lm(y_i ~ x_i + I(x_i^2) + z_i + I(z_i^2) )
+summary(quadratic_model_e)
+
+predict_quadratic5 <- predict(quadratic_model_a, newdata = data.frame(x_i = sort(x_i), z_i = sort(z_i)))
+
+library(rockchalk)
+
+plotPlane(quadratic_model_e, "x_i", "z_i", pch=16, col=rgb(0,0,1,0.1), drawArrows=TRUE, alength=0, 
+          acol="red", alty=1,alwd=1, theta=25, phi=0)
+
+detach(df)
+```
+The coefficient for x_i is -0.706417, for x_i^2 it is 0.003103, for z_i it is 0.157026, for z_i^2 it is -0.003961.
+
+#### f
+```{r}
+attach(df)
+
+h = 0.0001
+predict_quadratic6 <- predict(quadratic_model_e, newdata = data.frame(x_i = sort(x_i+h), z_i = sort(z_i)))
+predict_quadratic7 <- predict(quadratic_model_e, newdata = data.frame(x_i = sort(x_i-h), z_i = sort(z_i)))
+
+res = mean((predict_quadratic6-predict_quadratic7)/(2*h))
+res
+detach(df)
+```
+This is a pretty good estimate of the previous regression coefficient -0.36735.
+
+#### g
+```{r}
+set.seed(42)
+B = 10000
+attach(df)
+apd1 = rep(NA,B)
+for (i in 1:B){
+  index = sample(c(1:184), size = 184, replace = T)
+  x.boot = x_i[index]
+  y.boot = y_i[index]
+  z.boot = z_i[index]
+  model <- lm(y.boot ~ x.boot + I(x.boot^2) + z.boot + I(z.boot^2))
+  h = 0.0001
+  predict1 = predict(model, newdata = data.frame(x.boot = x.boot + h))
+  predict2 = predict(model, newdata = data.frame(x.boot = x.boot - h))
+  apd1[i] = mean((predict1-predict2)/(2*h))
+}
+detach(df)
+
+quantile(apd1, c(0.025,0.975))
+summary(apd1)
+```
+A confidence interval is [-0.4616677, -0.2679650].
+
+### 2.3
+
+Although there is an obvious correlation and potentially some causality, it is too hasty to make causal inference. As we have observed, the addition of the access to electricity variable has reduced the magnitude of access to water by half. It's possible that another variable causes both low access to clean water and high infant mortality rates simultaneously. For example, poor infrastructure or pollution can both cause the water to be unclean, at the same time affecting infant's health through other channels as well, for example, poor medical healthcare or worse food quality, etc.
