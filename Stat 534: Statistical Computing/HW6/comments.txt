@@ -1,0 +1,5 @@
+The first question I simply used recursion based on the matrices files provided in class in the main.cpp. Makefile is same as in class, and the result can be accessed by "./matrices". 
+
+The second question I edited a few things. First, in regmodels.cpp, I modified the AddRegression function such that it will at most contain nMaxRegs number of regressions at each time. If it exceeds, the last one (with lowest marginal likelihood) will be deleted. Second, in the main file, the result will be saved in "result.txt". I also added a nested for loop to enable calculation for regressions with 2 predictors. Third, I changed a bit the matrices.cpp file to deal with dgeev errors 13 when I calculate the log determinant. This way I calculated 2x2 matrices' log determinants directly. Fourth, I edited the function call in regmodels.h by adding the parameter nMaxRegs in AddRegression.
+
+As for the third question, I simply run my code, see the result text file after calling "make" and "./regressions". The result is ranked by log likelihood (first column), and interestingly all best models have 2 predictors, and most of them have the second column as predictor.
