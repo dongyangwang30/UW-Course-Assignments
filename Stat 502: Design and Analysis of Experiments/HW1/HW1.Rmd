@@ -1,0 +1,235 @@
+---
+title: "Stat 502 HW1"
+author: "Dongyang Wang"
+date: "10/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercise 1
+
+(a) The advantage of letting the children choose is to create an observational study, where their actions are genuine and not affected by the instructions or other factors. The disadvantage is also obvious: no control trial can be done in this case and the experiment itself becomes meaningless. Moreover, there is no randomization, possibility for replication, or any blocking. That means it is hard for us to draw causal conclusions even if there are any only correlational patterns.
+
+(b) The advantage of giving the first 10 diet A and next 10 children diet B is to guarantee both diets are blocked so there we can compare across these two different diets and potentially see some difference. But a disadvantage here is the potential for systematic bias. It's possible, for example, people who are taller tend to stand back and shorter children stand near the front of line. So picking the first 10 may cause confounding factors to make an impact, in this case, height itself.
+
+(c) The advantage of alternating is to ensure blocking, but for randomization, it does so only to a certain but not sufficient extent. Since A,B,A,B follows a clear pattern, the assignment of children to diets is not completely random. As discussed in (b), a clear pattern in the assignment introduces potential problems for confounding factors or systematic bias. For example, it is possible that after observing the pattern, some children switch the places with others to obtain the diet they want.
+
+(d) The advantage of tossing a coin is the guarantee of randomization. However, it does not offer blocking. So it is possible that there are 15 children assigned to diet A but only 5 assigned to diet B. The validity of such an experiment is undermined because a conclusion is hard to draw when one group is more representative than the other. In other words, one group can be not represenatitive enough, in my example, B.
+
+(e) This is the most appropriate method among the five choices. We have 10 children for each diet (blocking); we randomized the assignment entirely to get rid of confounding factors and we can replicate the experiment given the same methodology. One potential disadvantage is that children may not be very willing to eat what others want them to--but this disadvantage is avoidable only if we choose an observational study.
+
+## Exercise 2
+
+(b)
+```{r}
+vector1 <- rep(c("A", "B"), each = 10)
+vector1
+```
+
+(c)
+```{r}
+vector2 <- rep(c("A", "B"), 10)
+vector2
+```
+(d)
+```{r}
+g.binomial <- rbinom(20,1,0.5)
+vector3 <- c()
+for (i in g.binomial){
+  if (i == 1){
+    vector3 <- append(vector3, "A")}
+  else{
+    vector3 <- append(vector3, "B")}
+}
+vector3
+```
+(e)
+```{r}
+vector4 <- rep(0, 20)
+index <- sample(20,10, replace = FALSE)
+vector4[index] <- "A"
+vector4[vector4 == 0] <- "B"
+vector4
+```
+
+## Exercise 3
+
+(a)
+```{r, include = FALSE}
+setwd('/Users/dongyangwang/Desktop/UW/Stat 502/HW')
+data <- readRDS("Plants.RDS")
+weight1 <- subset(data, group == 1)
+weight2 <- subset(data, group == 2)
+```
+
+For group 1, the mean weight is 4.912, median is 4.810, standard deviation is 0.7500305;
+For group 2, the mean weight is 5.768, median is 5.790, standard deviation is 0.6788983.
+```{r include = FALSE}
+summary(weight1$weight)
+sd(weight1$weight)
+summary(weight2$weight)
+sd(weight2$weight)
+```
+
+The following page contains the cdf for the two groups.
+```{r echo = FALSE}
+minweight <- min(data$weight)
+maxweight <- max(data$weight)
+library(ggplot2)
+```
+```{r echo =FALSE}
+par(mfrow = c(2, 1))
+ggplot(NULL, aes(weight1$weight)) +
+  geom_step(stat = "ecdf") +
+  labs(x= "Weight from Group 1",y = "F(y)") +
+  scale_x_continuous(
+    limits = c(minweight, maxweight))
+
+ggplot(NULL, aes(weight2$weight)) +
+  geom_step(stat = "ecdf") +
+  labs(x= "Weight from Group 2",y = "F(y)") +
+  scale_x_continuous(
+    limits = c(minweight, maxweight))
+```
+
+(b)
+i. The KS-statistic is 0.6; the variance ratio statistic is 1.22053.
+```{r include = FALSE}
+cdf<-function(y){
+   ys<-seq(min(y)-sd(y)/length(y), max(y)+sd(y)/length(y),length=length(y)^3)
+   ys<-sort(unique(c(y,ys)))
+   py<-(table( c(y,ys) ) -1)/length(y)
+   cbind(ys,cumsum(py))
+}
+g.ks<-function(yA,yB)
+{ 
+  sAB<-sort(unique(c(yA,yB)))
+  FA<-cumsum( table( c(yA, sAB) ) -1 )/length(yA)
+  FB<-cumsum( table( c(yB, sAB) ) -1 )/length(yB)
+  max(abs(FA-FB))
+}
+ks_stat <- g.ks(weight1$weight, weight2$weight)
+#or ks.test(weight1$weight, weight2$weight)
+ks_stat
+g.variance <- function(yA,yB){
+  max(var(yA)/var(yB), var(yB)/var(yA))
+}
+var_ratio_stat <- g.variance(weight1$weight, weight2$weight)
+var_ratio_stat
+#same as 0.7500305^2/0.6788983^2
+```
+
+ii. 
+```{r include =FALSE}
+Gsim<-NULL
+set.seed(42)
+for(s in 1:10000) {
+  Group1 <-sample(data$weight, size = 15)
+  Group2 <- subset(data$weight, !(data$weight %in% Group1))
+  Gsim<-rbind(Gsim,
+    c(g.ks(Group1,Group2),g.variance(Group1,Group2)))
+}
+Gsim
+summary(Gsim[,1])
+summary(Gsim[,2])
+#?hist
+```
+
+```{r echo = FALSE}
+par(mfrow = c(1, 2))
+#KS Statistic falls in [0,1]
+hist(Gsim[,1], xlim = c(0,1), freq= F, xlab = "KS value", main = "Histogram of KS Statistic")
+abline(v=0.6,col="blue")
+
+#Typically the varaince ratio falls between 1 and 4, but I will extend to 8 for inclusion of outliers
+hist(Gsim[,2], xlim=c(1,8), freq= F, xlab = "VR value", main = "Histogram of VR Statistic")
+abline(v=1.22053,col="blue")
+```
+
+iii.
+```{r include = FALSE}
+KS <- Gsim[,1]
+Variance_test <- Gsim[,2]
+
+#p value for KS
+p_KS <- sum(KS>=0.6)/sum(KS>=0)
+#p value for variance
+p_Var <- sum(Variance_test>=1.22053)/sum(Variance_test>= 0)
+```
+
+We have calculated that the p-value is 0.0077 for the KS statistic. and 0.6591 for the variance ratio statistic.
+Therefore, we can reject the null hypothesis given the KS statistic, but we fail to reject the null with the variance ratio statistic.
+As discussed in class, the KS statistic is sensitive to any difference between the two treatments. In comparison, the variance ratio statistic focuses more on the overall difference (or variation in general). Note that our null hypothesis is that there is no difference between the two treatments in terms of plant growth. Therefore, as the ks statistic is sensitive to difference, which is our topic of concern, we can reject the null hypothesis with the support of the KS statistic and conclude that there are differences between the two treatments. 
+
+(c)
+We know that for any hypothesis testing, the probability of rejecting the true null hypothesis is $\alpha$ and 0.05 in our case. We consider independence of the tests and if they are identical. If two tests are identical and independent, we would expect to see the probability of at least one test rejecting the true null hypothesis to be $\alpha = 0.05$. However, as the question prompt says, the tests in 3b are not identical. Then, we consider two cases. First, if the tests are independent, we know from the definition of significance level that each test has a probability of $\alpha$ in rejecting the true null hypothesis. So, with some calculation of probability, at least one of the tests rejects the true null hypothesis is $1-(1-\alpha)\times(1-\alpha) = 2\alpha - \alpha^2 = 0.1 - 0.0025 = 0.0975$. On the other hand, if the tests are not independent, it is more complicated. In our example, the two tests are kind of related. Since if one test tends to fail to reject the null given the other fails too, and failing to reject happens 95% of the time for a given test, we know that the probability of at least one test is rejecting the true null is falling. So the upper bound is still as calculated above, 0.0975.
+
+## Exercise 4
+
+(a)
+```{r include = FALSE}
+yA <- c(256,159,149)
+yB <- c(54,123,248)
+mean_stat <- abs(mean(yA) - mean(yB))
+data1 <- c(yA,yB)
+n.comb <- choose(6,3)
+combinations <-combn(6,3)
+group_mean <- c(rep(0, 20))
+for(i in 1:n.comb){
+  index <- combinations[,i]
+  group_mean[i] <- abs(mean(data1[index])-mean(data1[-index]))
+}
+group_mean
+mean_stat
+sum(group_mean >= mean_stat)/length(group_mean)
+```
+A randomization test of the hypothesis returns a p-value of 0.4. Therefore, we
+reject the null hypothesis that the treatment makes any difference.
+
+(b)
+```{r include = FALSE}
+yA <- c(256,159,149)
+yB <- c(54,123,248)
+mean_stat <- abs(mean(yA) - mean(yB))
+s_p <- sqrt(var(yA)/2 + var(yB)/2)
+t_stat_ob <- mean_stat/(s_p * sqrt(2/3))
+data1 <- c(yA,yB)
+n.comb <- choose(6,3)
+combinations <-combn(6,3)
+group_mean <- c(rep(0, 20))
+t_stat_null <- c(rep(0, 20))
+for(i in 1:n.comb){
+  index <- combinations[,i]
+  group_mean[i] <- abs(mean(data1[index])-mean(data1[-index]))
+  s_p1 <- sqrt(var(data1[index])/2 + var(data1[-index])/2)
+  t_stat_null[i] <-  group_mean[i]/(s_p1 * sqrt(2/3))
+}
+t_stat_null
+sum(t_stat_null >= t_stat_ob)/length(t_stat_null)
+```
+A randomization test of the hypothesis returns a p-value of 0.4. Therefore, we
+reject the null hypothesis that the treatment makes any difference. The two tests
+in (a) and (b) have the same p-value. 
+
+
+```{r echo = FALSE}
+par(mfrow = c(1, 2))
+#1
+hist(group_mean,freq= F, xlab = "absolute difference", main = "Histogram of (a)")
+abline(v=46.33333,col="blue")
+
+#1
+hist(t_stat_null, freq= F, xlab = "t stat", main = "Histogram of (b)")
+abline(v=0.6994734,col="blue")
+```
+
+(c) 
+See next page of handwritten notes.
+
+
+
+
+
