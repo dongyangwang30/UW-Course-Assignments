@@ -1,0 +1,179 @@
+---
+title: "Stat 502 hw6"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+
+### a
+```{r}
+#rm(list = ls())
+smoke <- readRDS('smoke.RDS')
+
+smoke$sse <- smoke$AGGREG - mean(smoke$AGGREG)
+
+attach(smoke)
+
+plot(as.factor(PERIOD), AGGREG)
+stripchart(as.numeric(PERSON) ~ AGGREG)
+interaction.plot(PERIOD, PERSON, AGGREG)
+interaction.plot(PERSON, PERIOD, AGGREG)
+
+detach(smoke)
+```
+The plots show that the clotting of platelets varies by person and period. There is also some interaction between person and period.
+
+### b
+
+```{r}
+anova(lm(AGGREG ~ PERSON * PERIOD, data =  smoke))
+anova(lm(AGGREG ~ PERSON + PERIOD, data =  smoke))
+```
+Yes, there is a significant difference in the clotting of platelets before and after smoking at the 0.01 level. The additive model without the interaction term is suitable here. Because otherwise there is no degree of freedom in the residuals, which means we are not able to conduct any hypothesis testing since the F-statistic is NaN.
+
+### c
+
+```{r}
+anova_model <- lm(AGGREG ~ PERSON + PERIOD, data =  smoke)
+
+# Independence: mp clear pattern
+plot(anova_model, which = 1)
+
+# homoskedasticity
+max(by(smoke$AGGREG, smoke$PERIOD, var)) / min(by(smoke$AGGREG, smoke$PERIOD, var))
+
+# zero expectation
+sum(anova_model$res)
+
+# normality
+hist(anova_model$res)
+qqnorm(anova_model$res);qqline(anova_model$res)
+```
+
+The assumptions for the model have been met.
+
+### d
+
+```{r}
+smoke$paired <- smoke$AGGREG[smoke$PERIOD == 2] - smoke$AGGREG[smoke$PERIOD == 1]
+smoke1 <- smoke[smoke$PERIOD == 1,]
+
+t.test(smoke1$paired)
+```
+
+The paired t-test returns the same p-value, 0.001633, as in the anova model for the treatment PERIOD.
+
+### e
+The two-way ANOVA is testing against a $F_{1, 10}$ distribution. The paired t-test is testing on a t-distribution with the degree of freedom being 10. From the practice midterm we know that the square of a t-distribution with dof m follows a F-distribution with dof 1,m, I will now show that the square of the t-statistic is indeed the F-statistic. 
+
+```{r}
+t.numerator <- mean(smoke$AGGREG[smoke$PERIOD == 2]) -mean(smoke$AGGREG[smoke$PERIOD == 1])
+t.denominator <- sd(smoke1$paired)/sqrt(11)
+t = t.numerator/t.denominator
+t
+t^2
+```
+We can easily observe that the square of the t-statistic is exactly the same as the F-statistic for PERIOD in the ANOVA model. Therefore, it is no surprise that the two-way ANOVA is equivalent to the paired t-test.
+
+## 2
+
+### a
+
+Since there are 2x3 = 6 different combinations of music and snack, Ruben has 30/6 = 5 samples for each combination given that the model is balanced.
+
+### b
+
+We can see snack 2 has a positive effect on efficiency compared with snack 1, given music 3. In this case with music 3, time with snack 2 is approximately 6 minutes longer than with time with snack 1.
+
+### c
+
+We will expect parallel lines because there is no interaction effect. See last page for attachment (picture of drawing). For (d) and (e), see the same attachment but the calculation is listed below.
+
+### d
+
+```{r}
+# df interaction
+2*1
+
+# df total
+30-1
+
+# df residual
+30-1 -5
+# or 33.7/1.4
+
+# MSE
+13.9/2
+```
+
+### e
+
+```{r}
+# df music 1: balanced design so
+8
+
+# MSE music 2
+7.86/8
+
+# F-value music 2
+38.91/(7.86/8)
+pf(38.91/(7.86/8), 1,8, lower.tail = F)
+
+# MSE music 3
+16.03/8
+
+# F-value music 3
+70.18/(16.03/8)
+pf(70.18/(16.03/8), 1,8, lower.tail = F)
+```
+
+No, there is no music type for which the effect of snack is not significant at the 5% level. Based on our calculations, all the p-values are less than 0.05.
+
+## 3
+
+### a
+
+There are 4 levels for the factors, which can be calculated by adding one to the dof. There are a total of 3+3+9+14+1 = 30 experimental units.
+
+### b
+
+```{r}
+# SS r
+3.3255+112.95 - 116.25
+
+# MS r
+(3.3255+112.95 - 116.25)/3
+
+# SS interaction
+0.48787
+
+# MS interaction
+0.0054207
+
+# SS Error
+0.8223
+
+# MS Error
+0.058736
+```
+The sum of SS r and SS c remains the same across the two models: the change of order changes them respectively but does not affect the sum or the dof. We can calculate SS and MS accordingly. The interaction term and the error terms remain the same because there is no reason why they can change: as the Vienn diagram shows, only SSA and SSB change but the sum, interaction, and error do not.
+
+## 4
+
+### a
+
+We can use the factorial treatment design. With the four characteristics in concern, there are a total of 2x2x3x2 = 24 combinations we can form using the different levels of the factors. There is one entry per unique combination of nitrogen, depth, date, and location. So, we can assign different levels of the factors to 24 plots. In consequence, we will have a 4x6 table, where 4 contains combinations of nitrogen and depth, while 6 contains combinations of date and location.
+
+### b
+
+We can use the Latin square. We have one treatment, brands of cutters, and two blocks, operators and the days. Since there are 4 operators and 4 cutters, and we should finish the experiment within 7 days, we will use 4 days for the experiment to ensure a balanced design. So we have a 4x4 Latin square, and we can compare the total wastes of each day and operator combination. As a result, we will have a 4x4 table with 16 entries, and each cutter appears 4 times.
+
+### c
+
+We can use the randomized complete blocking design. We have one treatment, drug A/B, and one block, the clinic (since variation across clinics is expected). Since we want to compare the effects of the two drugs, we want a balanced design. That is, we have 10 entries per block and treatment combination, and we will have a total of 100 entries.
+
+
