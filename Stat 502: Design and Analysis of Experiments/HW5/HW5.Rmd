@@ -1,0 +1,204 @@
+---
+title: "hw 5"
+author: "Dongyang Wang"
+date: "11/14/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+
+(a)
+```{r}
+dat <- data.frame(responses = c(2600, 2900, 2000, 2200,3200,
+35000,23000,20000,30000,27000,
+2900000,2300000,1700000,2900000,2000000),
+treatment = as.factor(c(rep("1",5),rep("2",5),rep("3",5))))
+
+plot(dat)
+
+var(dat$responses[1:5])
+var(dat$responses[6:10])
+var(dat$responses[11:15])
+
+sd((dat$responses[11:15]))/sd(dat$responses[1:5])
+```
+First, the data seems not normally distributed. Also, across different treatments, the variances differ greatly (the highest/lowest standard deviation ratio is way larger than 7). This violates our linear model ANOVA assumption that the variance should be the same.
+
+(b)
+```{r}
+anova_model <- lm(dat$responses ~ dat$treatment)
+anova(anova_model)
+anova_model$res
+
+# expectation
+sum(anova_model$res)
+
+# normality
+hist(anova_model$res)
+qqnorm(anova_model$res,main="") ; qqline(anova_model$res)
+
+# homoskedasticity
+anova_model$fitted.values
+plot(anova_model$fitted.values, anova_model$res)
+```
+Zero expectation of residuals holds. No observable trend for the histogram, possibly because the data has only 15 entries. The qq plot shows, however, that the residuals are not normally distributed. Also from the mean-variance relationship, we verify the argument in (a) such that the variances are not constant. Therefore, we need to transform the data.
+
+(c)
+```{r}
+s_i <- log(c(sd(dat$responses[1:5]), sd(dat$responses[6:10]), sd(dat$responses[11:15])))
+s_i
+y_ibar <- log(c(mean(dat$responses[1:5]), mean(dat$responses[6:10]), mean(dat$responses[11:15])))
+y_ibar
+
+# show linear relationship
+plot(y_ibar,s_i)
+abline(lm(s_i ~ y_ibar))
+
+# obtain alpha
+lm(s_i ~ y_ibar)
+```
+Although there are only 3 points, we can see a clear linear relationship between the log values of the response and the log values of the sample standard deviation . Therefore, we can do a BoxCox transformation of the response with $\hat{\alpha} = 1.024$.
+
+(d)
+```{r}
+# transform
+dat$y_star <- dat$responses^(1- 1.024)
+new_model <- lm(dat$y_star ~ dat$treatment)
+anova(new_model)
+
+sum(new_model$residuals)
+
+# residuals
+new_model$residuals
+
+hist(new_model$residuals)
+qqnorm(new_model$residuals,main="") ; qqline(new_model$residuals)
+plot(new_model$fitted.values, new_model$res)
+
+var((new_model$res[11:15]))/var(new_model$res[1:5])
+```
+Due to limited data, the histogram is not very informative. But the qq plot shows clearly the normality of the residuals. The mean-variance plot shows the same variance, and the highest/lowest standard deviation ratio is smaller than 2. The assumptions for the linear model have been satisfied. Therefore, we can use the linear ANOVA model after applying the BoxCox transformation.
+
+## 2
+
+(a)
+```{r}
+d.len <- read.table("lentil.dat", header = TRUE)
+d.len$TR <- factor(d.len$TR)
+stripchart(as.numeric(d.len$TR) ~ d.len$Y)
+
+len_model <- lm(d.len$Y ~ d.len$TR)
+
+sum((len_model$residuals))
+# plots
+
+hist(len_model$residuals)
+qqnorm(len_model$residuals,main="") ; qqline(len_model$residuals)
+plot(len_model$fitted.values, len_model$res)
+
+library(tidyverse)
+d.len %>% select(TR, Y) %>% group_by(TR) %>% summarize(varY = var(Y)) %>% mutate(max(varY)/min(varY))
+
+# or use
+max(by(len_model$res, d.len$TR, var))/min(by(len_model$res, d.len$TR, var))
+
+anova(len_model)
+```
+We should be careful in applying the linear model. Zero expectation of residuals holds. The histogram is right tailed but only one outlier is on the left. The qq plot seems fine. However, the variance varies a lot because the ratio is 33.33036 and above 7. This violates the constant variance assumption of ANOVA. If we use the ANOVA, we reject the null hypothesis at the 0.002 level,i.e., we can claim that there is difference between the treatments.
+
+(b)(i)
+```{r}
+# orthogonality
+A = matrix(c(-6, +1, +1, +1, +1, +1,
+             +1, 0, -1, -1 ,-1, +1, 
+             +1, +1, 0, +2, -1, -1, 
+             +2, -1, -1, 0, 0, -1, 
+             +1, 0 ,-1 ,+1, 0 ,-2 ,
+             +1 ,+1 ,+2 ,-1 ,-1, 
+             0, 0, +1, -1, 0 ,-1 ,+1), nrow = 6, byrow = T)
+
+for (i in 1:(nrow(A)-1)){
+  for (j in (i+1):nrow(A)){
+    print(sum(A[i,] * A[j,] ) )
+  }
+}
+
+# An easier way is to claim that only diagonals are non-zero. 
+# That means each pair of different rows has a sum of 0.
+A %*% t(A)
+```
+Yes, the contrasts are orthogonal.
+
+(b)(ii)
+$C_1 = -6 k_1 + k_2 + k_3 +k_4 + k_5 +k_6 +k_7$. This contrast tries to test if at least one of the treatments is useful, as we are comparing the sum of the 6 treatments with the 1 null/control treatment.
+$C_2 = -k_2 - k_3 - k_4 + k_5 +k_6 +k_7$. This contrast tries to test the effect of fertilizer.
+$C_3 = 2k_2 - k_3 - k_4 + 2k_5 - k_6 - k_7$. This contrast tries to test the effect of hand vs the effect of spraying the herbicide.
+$C_4 = - k_3 + k_4 - k_6 + k_7$. This contrast tries to test the effect of spraying the herbicide before and after.
+
+(c)
+```{r}
+#install.packages('multcomp')
+library(multcomp)
+
+#?glht
+attach(d.len)
+
+fit.len <- lm(Y ~ TR)
+fit.mc <- glht(fit.len, linfct = mcp(TR = A))
+summary(fit.mc, test = adjusted("bonferroni"))
+detach(d.len)
+?p.adjust
+```
+The first three contrasts are significant. That means, the treatments are useful, in particular fertilizer and herbicide/hand weeding.
+
+## 3
+
+(a)
+```{r}
+y <- c(9, 12, 10, 8, 15,
+20, 21, 23, 17, 30,
+6, 5, 8, 16, 7)
+type <- c(rep("type 1",5),rep("type 2",5),rep("type 3",5))
+circ <- data.frame(Type = type, Y = y)
+circ$Type <- as.factor(circ$Type)
+circ
+
+# anova
+circ_model <- lm(Y ~ Type, data = circ)
+anova(circ_model)
+
+# assumption: expectation zero
+sum(circ_model$residuals)
+
+# assumption: normality
+hist(circ_model$residuals)
+qqnorm(circ_model$residuals,main="") ; qqline(circ_model$residuals)
+
+# assumption: variance
+plot(circ_model$fitted.values, circ_model$res)
+max(by(circ_model$res, circ$Type, var))/min(by(circ_model$res, circ$Type, var))
+```
+The model tells us that we can reject the null at 0.01 level. The assumption of zero expectation and homoskedasticity hold. Normality, however, does not seem to hold.
+
+(b)
+```{r}
+contrasts <- matrix(c(-1,2,-1, -1,0,1), nrow = 2, byrow = T)
+
+# orthogonal
+contrasts %*% t(contrasts)
+contrasts
+```
+
+(c)
+```{r}
+library(multcomp)
+circ.mc <- glht(circ_model, linfct = mcp(Type = contrasts))
+summary(circ.mc, test = adjusted("holm"))
+critical <- c(0.01/2, 0.01)
+critical
+```
+With a family wise level at 0.01, we can only rejects the null hypothesis for the first contrast. We do not reject the second contrast.
