@@ -1,0 +1,197 @@
+---
+title: "Stat 502 HW2"
+author: "Dongyang Wang"
+date: "10/16/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+
+```{r}
+#rm(list = ls())
+set.seed(123)
+A <- rnorm(30,0,1)
+B <- rnorm(10,0,2)
+t_obser <- t.test(A,B, var.equal = T)
+#We can calculate by hand
+sp <- sqrt(29/38 * var(A) + 9/38 * var(B))
+tstat1 <- (mean(A) - mean(B))/(sp*(sqrt(1/30+1/10)))
+tstat1
+#Or easier
+t_obs <- t_obser$statistic
+#a
+t_obs
+n <- 10000
+t_sim <- c(rep(0,n))
+for (i in 1:n){
+  Asim <- rnorm(30,0,1)
+  Bsim <- rnorm(10,0,2)
+  t_simul <- t.test(Asim, Bsim, var.equal = T)
+  t_sim[i] <-t_simul$statistic
+}
+#b
+mean(abs(t_sim) >= abs(t_obs))
+#c
+qt(c(0.025,0.975),df = 38)
+t_obser$p.value
+```
+
+(a) The observed t-statistic is -1.894907.
+
+(b) The p-value is 0.1813. Since 0.1813 > 0.05, we fail to reject the null hypothesis that $\mu_A = \mu_B$.
+
+(c)
+    (i)   Under the null, our test statistic has a t distribution with a df of $30+10-2=38$.
+    (ii)  The critical value is 2.024394.
+    (iii) The p-value of this t-test is 0.0657321 > 0.05. Therefore, we fail to reject the null hypothesis that $\mu_A = \mu_B$.
+
+## 2
+```{r}
+t_obser1 <- t.test(A,B, var.equal = F)
+sA <- var(A)
+sB <- var(B)
+#a
+tstat2 <- (mean(A) - mean(B))/sqrt(sA/30 + sB/10)
+tstat2
+#or use 
+t_obs1 <- t_obser1$statistic
+t_obs1
+#b
+df <- (sA/30 + sB/10)^2/((1/29*(sA/30)^2) + 1/9*(sB/10)^2)
+df
+#c
+qt(c(0.025,0.975),df)
+#d
+t_obser1$p.value
+```
+
+
+(a) The observed t-statistic is -1.825897.
+
+(b) The distribution is approximately a t-distribution. The df is 14.56476.
+
+(c) The critical value is 2.212768.
+    
+(d) The p-value is 0.08843495 We fail to reject the null hypothesis that $\mu_A = \mu_B$
+at the 0.05 level.
+
+(e) Although we could not reject the null in either case, the modified t test gives
+a higher p-value. This results from the fact we allow the variances of the two
+samples to be different, without which we would underestimate the type I error by 
+making the wrong assumption that the variances of two samples are the same. Also,
+the modified t test has lower df -- this is due to the SatterThaite-Welch Adjustment
+(Reference: https://stats.stackexchange.com/questions/48636/are-the-degrees-of-freedom-for-welchs-test-always-less-than-the-df-of-the-poole/48637#48637?newreg=0ddbdfc7200c40df99e6e5d699bcbd79).
+
+## 3
+
+```{r}
+set.seed(123)
+long_tail <- rexp(1000,3)
+mean(long_tail)
+hist(long_tail)
+qqnorm(long_tail) ; qqline(long_tail)
+
+short_tail <- runif(1000)
+mean(short_tail)
+hist(short_tail)
+qqnorm(short_tail) ; qqline(short_tail)
+
+left_skewed <- rbinom(1000, 100, 0.97)
+mean(left_skewed)
+hist(left_skewed)
+qqnorm(left_skewed) ; qqline(left_skewed)
+
+right_skewed <- rbinom(1000, 100, 0.03)
+mean(right_skewed)
+hist(right_skewed)
+qqnorm(right_skewed) ; qqline(right_skewed)
+```
+
+(a) I similated an exponential distribution with a lambda of 3 for (i), a uniform distribution for (ii),
+a binomial distribution with size 100 and p=0.97 for (iii), and a binomial distribution with size 100 and p=0.03 for (iv).
+Note that although binomial distributions tend to look like normal when size is large, in our case
+skewness exists as shown in the histograms and QQ plots. 
+
+(b) The first QQ plot has long tails or extreme values in distribution on both sides, which looks like an extension of the exponential case in (i), but adds some more data points on the lower end. The second (upper right) plot seems to have short tails as in (ii). The third QQ plot (lower left) shows that the data is left skewed because it looks like (iii), where the QQ line is above most data points
+and the data points looks a little concave parametric. The fourth plot has two values that are farther than others from the QQ line. It depends on how we define "short tails" to determine whether these data points are problematic. Compared with other 3 plots, however, this plot is good enough and shows normality.
+
+## 4
+```{r}
+typical <- c(-0.255, -0.213, -0.19, -0.185, -0.045, -0.025, -0.015, 0.003, 0.015,
+             0.02, 0.023, 0.04, 0.04, 0.05, 0.055, 0.058)
+odd <- c(-0.324, -0.185, -0.299, -0.144, -0.027, -0.039, -0.264, -0.077, -0.017,
+         -0.169, -0.096, -0.33, -0.346, -0.191, -0.128, -0.182)
+paired <- typical -odd
+#b
+delta <- 0.05
+n <- 16
+sd <- sd(paired)
+t.gamma <- delta/(sd/sqrt(n))
+t.gamma
+#c
+t.crit <- qt(0.975, n-1)
+t.power <- 1 - pt(t.crit, n-1, ncp = t.gamma) + pt(-t.crit, n-1, ncp = t.gamma)
+t.power
+
+#d
+N <- 500
+power <- rep(0,N)
+for(i in 1:N){
+  t.crit1 <- qt(0.975, i-1)
+  t.gamma <- delta/(sd/sqrt(i))
+  power[i] <- 1 - pt(t.crit1, i-1, ncp = t.gamma) + pt(-t.crit1, i-1, ncp = t.gamma)
+}
+plot(power)
+ind = match(1, power >= .9)
+ind
+```
+(a) We use the t-statistic based the difference of the two variables under th null and the new paired variable follows t distribution under our assumption.
+
+(b) The non-centrality paraeter under the alternative is 1.482098.
+
+(c) The power of the two-sided t-test is 0.2840631.
+
+(d) We need 79 samples to have 90% power under the alternative with a two-sided t-test.
+
+## 5
+```{r}
+set.seed(123)
+yA <- c(256,159,149)
+yB <- c(54,123,248)
+mean_stat <- mean(yA) - mean(yB)
+data1 <- c(yA,yB)
+n.comb <- choose(6,3)
+combinations <-combn(6,3)
+group_mean <- c(rep(0, 20))
+for(i in 1:n.comb){
+  index <- combinations[,i]
+  group_mean[i] <- mean(data1[index])-mean(data1[-index])
+}
+group_mean
+mean_stat
+mean(abs(group_mean) >= mean_stat)
+```
+We obtain p-value of 0.4. So we fail to reject the null that two treatments have equal average numbers.
+
+## Extra: voting for midterm in class
+
+Although I voted for taking midterm online, the result is not significant under
+the assumption of Ber(0.5). Null: no preference between taking online or in person midterms. Fail to reject null.
+In reality people might not vote because they are fine either way so the result makes sense.
+```{r}
+set.seed(123)
+online <- round(29*0.65)
+onsite <- 29- online
+diff = abs(online - onsite)
+group_mean111 <- c(rep(0, 10000))
+for(i in 1:10000){
+  online1 <- rbinom(1,50,0.5)
+  online2 <- 50 - online1
+  group_mean111[i] <- abs(online2 - online1)
+}
+mean(group_mean111 >= diff)
+```
