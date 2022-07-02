@@ -1,0 +1,97 @@
+---
+title: "hw 7"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+
+### a
+This is a Latin square with 2 blocks, store and weekday; 1 factor, special offers A-E.
+
+### b
+This is RCBD with 1 block, ground covers, and 1 factor, fertilizer levels. There are 4 observations per combination, and a total of 24 observations.
+
+### c
+This is a BIBD with 2 blocks, region and patient; 1 factor ointments A-E.
+
+## 2
+
+### a
+We can have a BIBD with 6 blocks, 2 levels in each block. Since N = bk = rg, we have 4 treatments and each treatment appears 3 times.
+
+### b 
+
+Yes, it is a BIBD. First, each tr4eatment appears r=3 times. Second, each treatment appears at most once per block. Third, each pair of treatments appears exactly once without repetition. Also, it satisfies N = bk =rg, where b = 9, k =3, g = 9, r = 3.
+
+```{r}
+readRDS("ibd.RDS")
+```
+
+## 3
+
+### a
+See attachment.
+
+### b
+E = ABCD. We want to ensure that main effects and lower order interactions do not get confounded.
+
+### c
+See attachment.
+
+### d
+ABCDE, where all levels are positive. Added to attachment.
+
+## 4
+
+Since the error is normally distributed, we can construct a t-statistic using the mean between $y_{i2kl}$ and $y_{i1kl}$. Since the variance in the error is known to be 4, we can calculate the variance of each sample mean, which is $\frac{4+4+4+4}{16} = 1$. Therefore, the variance of $y_{i2kl} - y_{i1kl}$ is 2. As a result our test statistic is $\frac{y_{i2kl} - y_{i1kl}}{\sqrt{2}}$ and this follows the standard normal distribution. We can either use a z-test or t-test to conduct the hypothesis testing.
+
+```{r, include= FALSE}
+# midterm Q1(3)
+y<- c( 26.9,11.4,26.6,23.7,25.3,28.5,14.2,17.9,16.5,21.1,24.3,19.6)
+x<-c("B", "A", "B", "A", "B", "B", "B", "A", "A", "A", "B", "A")
+
+sa <- sd(y[x=="A"])
+sb <- sd(y[x=="B"])
+g31 <- abs(sa^2 -sb^2)
+g41 <- abs(sa -sb)
+
+
+set.seed(1)
+g3 <- g4 <- c()
+for(nsim in 1:10000)
+{
+  xsim<-sample(x)
+  sa <- sd(y[xsim=="A"])
+  sb <- sd(y[xsim=="B"])
+  g3[nsim] <- abs(sa^2 -sb^2)
+  g4[nsim] <-  abs(sa -sb)
+}
+
+
+mean( abs(g3)>=abs(g31))
+mean( abs(g4)>=abs(g41))
+
+meana <- mean(y[x=="A"])
+meanb <- mean(y[x=="B"])
+g31 <- abs(meana^2 -meanb^2)
+g41 <- abs(meana -meanb)
+
+set.seed(1)
+g3 <- g4 <- c()
+
+for(nsim in 1:10000)
+{
+  xsim<-sample(x)
+  sa <- mean(y[xsim=="A"])
+  sb <- mean(y[xsim=="B"])
+  g3[nsim] <- abs(sa^2 -sb^2)
+  g4[nsim] <-  abs(sa -sb)
+}
+
+mean( abs(g3)>=abs(g31))
+mean( abs(g4)>=abs(g41))
+```
