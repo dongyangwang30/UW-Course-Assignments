@@ -1,0 +1,124 @@
+---
+title: "Stat 502 HW4"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+
+(a)
+```{r}
+zinc <- readRDS("zinc.RDS")
+summary(zinc)
+n <- 5
+m <- 4
+N <- m*n
+lambda <- n*(1^2 + 5^2 +3^2)/20^2
+lambda
+alpha <- 0.05
+powerF <- 1 - pf(qf(1-alpha, m-1, N-m), m-1,N-m, ncp = lambda)
+powerF
+```
+The power is 0.07123778.
+
+```{r}
+powerf <- c()
+for (n in 1:200){
+  m <- 4
+  N < m*n
+  lambda <- n*(1^2 + 5^2 +3^2)/20^2
+  alpha <- 0.05
+  powerf[n] <- 1 - pf(qf(1-alpha, m-1, N-m), m-1,N-m, ncp = lambda)
+}
+powerf
+ind = match(1, powerf >= .8)
+ind
+```
+We need sample size of at least 160.
+
+```{r}
+powerf1 <- c()
+for (sigma in 1:20){
+  m <- 4
+  n <- 10
+  N < m*n
+  lambda <- n*(1^2 + 5^2 +3^2)/sigma^2
+  alpha <- 0.05
+  powerf1[sigma] <- 1 - pf(qf(1-alpha, m-1, N-m), m-1,N-m, ncp = lambda)
+}
+powerf1
+ind = match(1, powerf1 <= .8) -1
+ind
+```
+Largest value $\sigma$ can take is 5.
+
+## 2
+
+(a)
+```{r}
+X <- matrix(c(1,1,1,1, 1,1,1,1, 1,1,0,0, 0,0,1,1, 0,0,1,1, 0,0,-1,-1,
+              0,0,0,0, 1,1,-1,-1), byrow = F, ncol = 4)
+X
+```
+We have obtained this matrix because of the constraint $\tau_1 - \tau_2 -\tau_3 = \tau_4$. The rows of the matrix are $Y_{ij}$, namely $Y_{11}, Y_{12}$... And the columns are $\mu, \tau_1, \tau_2, \tau_3$.
+
+(b)
+```{r}
+XT <- t(X)
+invxtx <- solve(XT %*% X)
+H <- X %*% invxtx %*% XT
+H
+```
+We have obtained the H matrix using $H = X(X^TX)^{-1}X^T$.
+
+(c)
+Because of the constraints, we know $\tau_1 = \tau_2 = 2\tau_3 = -10\tau_4$. So we can write everything in terms of $\tau_3$ as follows:
+```{r}
+X_prime <- matrix(c(1,1,1,1, 1,1,1,1, 2,2,2,2, 1,1,-5,-5), byrow = F, ncol = 2)
+X_prime
+```
+
+## 3
+
+(a)
+```{r}
+X_weight <- matrix(c(1,1,1, 0,0,0, 0,0,0, 0,0,0, 1,1,1, 0,0,0, 
+                     0,0,0, 0,0,0, 1,1,1), byrow = F, ncol = 3)
+X_weight
+```
+
+(b)
+```{r}
+XXTinv <- solve(t(X_weight) %*% X_weight)
+Y = matrix(c(78,86.8,103.8,83.7,89,99.2,83.8,81.5,86.2), ncol = 1)
+beta <- XXTinv %*% t(X_weight) %*% Y
+beta
+```
+Therefore, the estimate $\hat{\beta_1}$ for $\beta_1$ is the first entry in the above vector, i.e., 89.5333.
+
+(c)
+```{r}
+mn_1 <- 3*2
+sse <- sum((Y[1:3] - mean(c(78,86.8,103.8)))^2 + (Y[4:6] - mean(c(83.7,89,99.2)))^2 
+           +  (Y[7:9] - mean(c(83.8,81.5,86.2)))^2)/mn_1
+se <- sqrt(sse) * sqrt(XXTinv[1,1])
+se
+```
+The standard error of $\hat{\beta_1}$ is 5.159673.
+
+(d)
+By theorem, we know that $\frac{\hat{\beta_1} - \beta_1}{SE(\hat{\beta_1})}$ follows $t_{n-p}$ distribution.
+```{r}
+n = 9
+p = 3
+t_c <- qt(0.95,6)
+CI = c(beta[1,1] - t_c * se, beta[1,1] + t_c * se)
+CI
+```
+The 90% confidence interval for $\hat{\beta_1}$ is [79.50716, 99.55951].
+
+(e)
+Yes they are independent. By our model, we know $\mu_i$ are fixed. Since $\epsilon_{ij}$ are independent, $Y_{ij}$ is also independent because it is a linear function of $\epsilon_{ij}$. For each $\hat{\mu_i}$, we know that $\hat{\mu_i} = X(X^TX)^{-1}Y$ and therefore is a linear function of the Y, which is independent. Therefore, $\hat{\mu}_{beef}$ and $\hat{\mu}_{pork}$ are independent.
