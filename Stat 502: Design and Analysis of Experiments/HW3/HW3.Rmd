@@ -1,0 +1,156 @@
+---
+title: "Stat 502 HW3"
+author: "Dongyang Wang"
+date: "10/25/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+
+(a)
+```{r}
+#rm(list = ls())
+sleep <- sleep
+sleep1 <- sleep[sleep$group == 1,]
+sleep2 <- sleep[sleep$group == 2,]
+t.test(sleep1$extra, sleep2$extra, var.equal = T)
+```
+The confidence interval is [-3.363874, 0.203874].
+
+(b)
+
+Since $Y_A, Y_B$ are normally distributed, $Y_A -  Y_B \sim N(\delta, \frac{\sigma^2}{n_A} +\frac{\sigma^2}{n_B})$. To form a standard normal, we have $\frac{Y_A -  Y_B -\delta}{\sqrt{\frac{\sigma^2}{n_A} +\frac{\sigma^2}{n_B}} }$. Since we also know $\frac{n_A +n_B - 2}{\sigma^2} s_P^2$ follows chi-squared distribution with $n_A +n_B - 2$ as the dof, and X and Z are independent. So, by definition of t-statistic, we have $t(Y_A,Y_B) = \frac{\frac{Y_A -  Y_B - \delta}{ \sqrt{\frac{\sigma^2}{n_A} +\frac{\sigma^2}{n_B}} }}{\sqrt{\frac{n_A +n_B - 2}{\sigma^2} s_P^2/(n_A +n_B - 2)}} = \frac{Y_A -  Y_B}{s_p \sqrt{\frac{1}{n_A} +\frac{1}{n_B}}} - \frac{\delta}{s_p \sqrt{\frac{1}{n_A} +\frac{1}{n_B}}}$. As we can observe, this is a non-central t-distribution.
+
+The components are
+(i)     Z = $\frac{Y_A -Y_B -\delta}{\sqrt{\frac{\sigma^2}{n_A} +\frac{\sigma^2}{n_B}} }$.
+(ii)    X = $\frac{n_A +n_B - 2}{\sigma^2} s_P^2$.
+(iii)   The non-centrality parameter is $\gamma = \frac{-\delta}{\sqrt{\frac{\sigma^2}{n_A} +\frac{\sigma^2}{n_B}} }$.
+
+(c) Since power is an increasing function of absolute value of the non centrality parameter $\gamma = |\frac{\delta}{\sqrt{\frac{\sigma^2}{n_A} +\frac{\sigma^2}{n_B}}}|$, we want to maximize $\gamma$. Rewriting with $n_B = N - n_A$, we have $\gamma = |\frac{\delta}{\sigma\sqrt{\frac{1}{n_A} +\frac{1}{N- n_A}}}| = |\frac{\delta}{\sigma\sqrt{\frac{N}{n_A(N- n_A)}}}| = |\frac{\delta \sqrt{n_A(N- n_A)}}{\sigma\sqrt{N}}|$. To maximize this, we let $N-n_A = n_A$, that is $n_A = \frac{1}{2}N$. Hence, we maximized power.
+
+## 3
+
+(a) The model is $y_{ij} = \mu + \tau_{i} + \epsilon_{ij}$. The meaning of $\mu$ means the mean when no treatment is in place. $\tau_{i}$ represent the within treatment variation for the four treatments. Key assumptions include $E(\epsilon_{ij}) = 0$, $Var(\epsilon_{ij}) = \sigma^2$. We also want the sum of $\tau_{i}$ is 0.
+
+(b)
+```{r}
+A <- c(62,60,63,59,64)
+B <- c(65,67,73,65,66)
+C <- c(69,66,71,67,67,68,62)
+D <- c(66,62,65,61,64,65,63)
+effect <- c(A,B,C,D)
+diet <- c(rep('A', 5), rep('B', 5),rep('C', 7), rep('D', 7))
+data <- data.frame(effect, diet)
+plot(as.factor(data$diet), data$effect)
+mean(A)
+mean(B)
+mean(C)
+mean(D)
+mean(data)
+```
+There is no big difference between C and B, but among others theire is a difference.
+
+(c)
+```{r}
+#Group sample variances
+sA <- var(A)
+sB <- var(B)
+sC <- var(C)
+sD <- var(D)
+sA;sB;sC;sD
+# MSE
+mse <- (4*sA+4*sB+6*sC+6*sD)/(24 - 4)
+mse
+```
+Group sample variances are 4.3, 11.2, 7.809524, 3.238095. The MSE is 6.414286.
+
+(d)
+```{r}
+mst <- 5/3*(mean(A) - mean(data$effect))^2 + 5/3*(mean(B) - mean(data$effect))^2
++7/3*(mean(C) - mean(data$effect))^2 + 7/3*(mean(D) - mean(data$effect))^2 
+mst
+```
+MST is 41.90476. It is way larger than MSE, so we can expect to reject the null that the diets are no different.
+
+(e)
+```{r}
+anova(lm(data$effect ~ data$diet))
+```
+Yes, since the p-value is 0.002937, we can safely reject the null and say that there is a difference for these four diets.
+
+(f)
+Since the fitted values are the mean for each diet, we have
+```{r}
+data$miu.hat <- c(rep(mean(A), 5), rep(mean(B), 5),rep(mean(C), 7), rep(mean(D), 7))
+data$residual <- data$effect - data$miu.hat
+qqnorm(data$residual)
+```
+Yes, the residuals appear to follow a normal distribution, since the points on the plot are pretty much along the diagonal. 
+
+## 4
+
+(a)
+```{r}
+library(dplyr)
+zinc <- readRDS("zinc.RDS")
+plot(as.factor(zinc$ZINC), zinc$DIVERSITY)
+mean(zinc$DIVERSITY)
+# Method 1
+meanZ <- zinc %>%
+  group_by(ZINC) %>%
+  summarize(mean(DIVERSITY))
+# 2
+aggregate(x= zinc$DIVERSITY,     
+         # Specify group indicator
+         by = list(zinc$ZINC),      
+         # Specify function (i.e. mean)
+         FUN = mean)
+```
+Yes, there appears to be a difference in biodiversity of rivers with different Zinc levels.
+
+(b)
+```{r}
+#Group sample variances
+varZ <- zinc %>%
+  group_by(ZINC) %>%
+  summarize(var(DIVERSITY))
+varZ
+#count
+numZ <- zinc %>%
+  count(ZINC)
+#MSE
+mse1 <- (0.2354786+0.2081268+0.1980214	+0.2876286			
+)/4
+mse1
+```
+Group variances are BACK 0.2354786, HIGH	0.2081268, LOW	0.1980214, MED	0.2876286. MSE is 0.2323139.
+
+(c)
+```{r}
+meanZ
+mst1 <- 8/3*((1.79750 - mean(zinc$DIVERSITY))^2 + (1.28125 - mean(zinc$DIVERSITY))^2 + 
+               (2.03250 - mean(zinc$DIVERSITY))^2 + (1.73000 - mean(zinc$DIVERSITY))^2 )
+mst1
+fratio <- mst1 / mse1
+fratio
+#verify
+anova(lm(zinc$DIVERSITY ~ zinc$ZINC))
+```
+Yes, I would have expected this F ratio -- it is large such that we can reject the null that there is no difference in biodiversity in zones with different Zinc levels. This is consistent with my observation in the plots and early data exploration of the mean.
+
+(d)
+
+```{r}
+zinc.level <- zinc$ZINC
+fr <- c()
+for(i in 1:1000){
+  zinc.sim <- sample(zinc.level)
+  fr <- c(fr, anova(lm(zinc$DIVERSITY ~ zinc.sim))$F[1] )
+}
+mean(fr >= 3.3964)
+```
+With a p-value of 0.027, we can reject the null and say that Zinc levels do affect biodiversity.
