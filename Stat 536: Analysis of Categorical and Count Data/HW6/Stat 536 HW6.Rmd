@@ -1,0 +1,97 @@
+---
+title: "Stat 536 HW6"
+author: "Dongyang Wang"
+date: "2022-11-30"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+We first construct all possible models.
+```{r}
+snp = c(1167, 1509, 763, 234, 107, 14,
+        377, 16, 225, 2, 29, 0, 
+        186, 179, 130, 19, 11, 2)
+snp.array = array(snp,c(2,3,3))
+saturated.loglin = loglin(snp.array,margin=list(c(1,2,3)),
+                                       fit=TRUE,param=TRUE)
+
+indep.loglin = loglin(snp.array,margin=list(1,2,3),
+                                 fit=TRUE,param=TRUE)
+
+X1indepX2X3.loglin = loglin(snp.array ,margin=list(1,c(2,3)),
+                                          fit=TRUE,param=TRUE)
+
+
+
+X2indepX1X3.loglin = loglin(snp.array ,margin=list(2,c(1,3)),
+                                              fit=TRUE,param=TRUE)
+                            
+X3indepX1X2.loglin = loglin(snp.array ,margin=list(3,c(1,2)),
+                                       fit=TRUE,param=TRUE)    
+
+X2indepX3givenX1.loglin = loglin(snp.array ,margin=list(c(1,2),c(1,3)),
+                                fit=TRUE,param=TRUE)
+
+X1indepX3givenX2.loglin = loglin(snp.array ,margin=list(c(1,2),c(2,3)),
+                                  fit=TRUE,param=TRUE)
+
+X1indepX2givenX3.loglin = loglin(snp.array ,margin=list(c(1,3),c(2,3)),
+                      fit=TRUE,param=TRUE)
+
+no2nd.loglin = loglin(snp.array ,margin=list(c(1,2),c(1,3),c(2,3)),
+                                       fit=TRUE,param=TRUE)
+```
+
+Then we assess their fit.
+```{r}
+1-pchisq(indep.loglin$lrt,indep.loglin$df)
+1-pchisq(X1indepX2X3.loglin$lrt,X1indepX2X3.loglin$df)
+1-pchisq(X2indepX1X3.loglin$lrt,X2indepX1X3.loglin$df)
+1-pchisq(X3indepX1X2.loglin$lrt,X3indepX1X2.loglin$df)
+1-pchisq(X2indepX3givenX1.loglin$lrt,X2indepX3givenX1.loglin$df)
+1-pchisq(X1indepX3givenX2.loglin$lrt,X1indepX3givenX2.loglin$df)
+1-pchisq(X1indepX2givenX3.loglin$lrt,X1indepX2givenX3.loglin$df)
+1-pchisq(no2nd.loglin$lrt,no2nd.loglin$df)
+```
+
+Based on above result, we further check model fit for X2indepX3givenX1.loglin and no2nd.loglin to see if u23 is significant.
+
+```{r}
+1-pchisq(X2indepX3givenX1.loglin$lrt-no2nd.loglin$lrt,
+                 X2indepX3givenX1.loglin$df-no2nd.loglin$df)
+```
+
+We fail to reject that the term u23 is 0. Thus, we are left with the X2indepX3givenX1.loglin model, shown below.
+
+```{r}
+X2indepX3givenX1.loglin
+```
+
+Therefore, from the analysis, we learned that SNP1 is independent of SNP2 given disease. But SNP1 and SNP2 are related to each other.
+
+The interpretations of individual models are as follows:
+
+First, we specify the X1 as disease, X2 as SNP1, X3 as SNP2. The interpretation of the models is as follows. 
+
+First model is saturated model and we consider all possible higher order interactions: that is all three variables can interact each other.
+
+Second model is complete independence model. That is, all variables act on their own.
+
+Third model: This is the model of independence of X1 and {X2, X3}. Meaning: disease independent of SNP1, SNP2.
+
+Fourth model: This is the model of independence of X2 and {X1, X3}. Meaning: SNP1 independent of disease, SNP2.
+
+Fifth model: This is the model of independence of X3 and {X1, X2}. Meaning: SNP2. independent of SNP1, disease.
+
+Sixth model: This is the model of conditional independence of X2 and X3 given X1. Meaning: SNP1 independent of SNP2 given disease.
+
+Seventh model: This is the model of conditional independence of X1 and X3 given X2. Meaning: disease. independent of SNP2 given SNP1. 
+
+Eighth model: This is the model of conditional independence of X1 and X2 given X3. Meaning: SNP1 independent of disease given SNP2.
+
+Last model: this is the no second order interaction model.
