@@ -1,0 +1,130 @@
+---
+title: "Stat 536 HW3"
+author: "Dongyang Wang"
+date: "2022-10-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question A
+
+```{r}
+rm(list = ls())
+data <- read.table("policestops.txt",header = TRUE)
+```
+
+```{r}
+attach(data)
+
+model1A <- glm(mystops ~ 1,family=poisson(link = "log"))
+summary(model1A)
+
+model2A <- glm(mystops ~ factor(myeth),family=poisson(link = "log"))
+summary(model2A)
+
+model3A <- glm(mystops ~ factor(myprecinct),family=poisson(link = "log"))
+summary(model3A)
+
+model4A <- glm(mystops ~ factor(myeth)+factor(myprecinct),
+               family=poisson(link = "log"))
+summary(model4A)
+detach(data)
+```
+
+```{r}
+# AIC
+AIC(model1A)
+AIC(model2A)
+AIC(model3A)
+AIC(model4A)
+
+# BIC
+model1A$deviance+model1A$rank*log(length(data$mystops))
+model2A$deviance+model2A$rank*log(length(data$mystops))
+model3A$deviance+model3A$rank*log(length(data$mystops))
+model4A$deviance+model4A$rank*log(length(data$mystops))
+
+```
+Based on aic and bic, I will select the last model with both precinct and ethnicity as predictors.
+
+```{r}
+#summary(model4A)
+predict(model4A, newdata = data.frame(myeth = 1, myprecinct = 3),type="response")
+predict(model4A, newdata = data.frame(myeth = 3, myprecinct = 3),type="response")
+
+predict(model4A, newdata = data.frame(myeth = 1, myprecinct = 1),type="response")
+predict(model4A, newdata = data.frame(myeth = 3, myprecinct = 1),type="response")
+```
+For precinct 3, the blacks are expected to stop 851.6685 times but whites 207.041 times; for precinct 1, the blacks are expected to stop 204.5492 times but whites 49.72599 times.
+
+## Question B
+
+```{r}
+attach(data)
+
+model1B <- glm(mystops ~ 1,family=poisson(link = "log"),
+               offset=log(myarrests))
+
+model2B <- glm(mystops ~ factor(myeth),family=poisson(link = "log"),
+               offset=log(myarrests))
+
+model3B <- glm(mystops ~ factor(myprecinct),family=poisson(link = "log"),
+               offset=log(myarrests))
+
+model4B <- glm(mystops ~ factor(myeth)+factor(myprecinct),
+               family=poisson(link = "log"),offset=log(myarrests))
+
+
+detach(data)
+```
+
+```{r}
+# AIC
+AIC(model1B)
+AIC(model2B)
+AIC(model3B)
+AIC(model4B)
+
+# BIC
+model1B$deviance+model1B$rank*log(length(data$mystops))
+model2B$deviance+model2B$rank*log(length(data$mystops))
+model3B$deviance+model3B$rank*log(length(data$mystops))
+model4B$deviance+model4B$rank*log(length(data$mystops))
+```
+Based on aic and bic, I will select the last model with both precinct and ethnicity as predictors. The model with arrest as baseline will be more preferrable because it has lower aic and bic.
+
+```{r}
+#summary(model4B)
+myarrests1_black = 980
+myarrests1_white = 381
+myarrests3_black = 2188
+myarrests3_white = 1238
+
+predict(model4B, newdata = 
+          data.frame(myeth = 1, myprecinct = 3, myarrests = myarrests3_black),
+        type="response")
+predict(model4B, newdata = 
+          data.frame(myeth = 3, myprecinct = 3, myarrests = myarrests3_white),
+        type="response")
+
+predict(model4B, newdata = 
+          data.frame(myeth = 1, myprecinct = 1, myarrests = myarrests1_black),
+        type="response")
+predict(model4B, newdata = 
+          data.frame(myeth = 3, myprecinct = 1, myarrests = myarrests1_white),
+        type="response")
+```
+For precinct 3, the blacks are expected to stop 964.7125 times but whites 359.0057 times; for precinct 1, the blacks are expected to stop 246.8262 times but whites 63.11321 times.
+
+
+## Question C
+
+```{r}
+summary(model4B)
+exp(-0.419001)
+```
+
+Based on the coefficients of factor(myeth)3 above, yes, there is a significant difference in number of stops given by the police based on race. The expected counts for white are 65.77035% of those for blacks.
