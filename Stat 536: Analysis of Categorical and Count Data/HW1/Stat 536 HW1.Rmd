@@ -1,0 +1,268 @@
+---
+title: "Stat 536 HW1"
+author: "Dongyang Wang"
+date: "2022-09-29"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(root.dir = '/Users/dongyangwang/Desktop/UW/Stat 536/HW 1',
+                      echo = TRUE)
+```
+
+## Question 1
+
+```{r}
+library(foreign)
+df <- read.dta("MROZ.dta")
+df <- df[,c(1,3:6,9:19,22)]
+```
+
+The wage of the non-working women is zero, hence the variables wage and lwage (columns 7 and 21) will contain missing values we eliminate these variables from the data. Also remove hours, repwage, and nwifeinc because they seem irrelevant to whether a woman will be in the labor force.
+
+## Question 2
+
+```{r}
+df[,"lage"] = log(df[,"age"])
+df[,"lhushrs"] = log(df[,"hushrs"])
+df <-df[ , !(names(df) %in% c("age", "hushrs"))]
+```
+
+Transforming two variables and dropping original ones.
+
+## Question 3
+
+```{r}
+for(i in 2:17)
+{
+	cat(colnames(df)[i],"[",i,"] = ",cor(df[,1],df[,i]),"\n");	
+}
+```
+
+Based on the results, the highest correlation turns out to be experience. I will implement a heuristic model based on exper.
+
+## Question 4
+
+```{r}
+#the inverse of the logit function
+inverseLogit <- function(x)
+{
+  return(exp(x)/(1+exp(x))); 
+}
+
+#function for the computation of the Hessian
+inverseLogit2 <- function(x)
+{
+  return(exp(x)/(1+exp(x))^2); 
+}
+
+#computes pi_i = P(y_i = 1 | x_i)
+getPi <- function(x,beta)
+{
+  x0 = cbind(rep(1,length(x)),x);
+  return(inverseLogit(x0%*%beta));
+}
+
+#another function for the computation of the Hessian
+getPi2 <- function(x,beta)
+{
+  x0 = cbind(rep(1,length(x)),x);
+  return(inverseLogit2(x0%*%beta));
+}
+
+#logistic log-likelihood (formula (3) in your handout)
+logisticLoglik <- function(y,x,beta)
+{
+  Pi = getPi(x,beta);
+  return(sum(y*log(Pi))+sum((1-y)*log(1-Pi)));
+}
+
+#obtain the gradient for Newton-Raphson
+getGradient <- function(y,x,beta)
+{
+  gradient = matrix(0,2,1);
+  Pi = getPi(x,beta);
+  
+  gradient[1,1] = sum(y-Pi);
+  gradient[2,1] = sum((y-Pi)*x);
+  
+  return(gradient);
+}
+
+#obtain the Hessian for Newton-Raphson
+getHessian <- function(y,x,beta)
+{
+  hessian = matrix(0,2,2);
+  Pi2 = getPi2(x,beta);
+  
+  hessian[1,1] = sum(Pi2);
+  hessian[1,2] = sum(Pi2*x);
+  hessian[2,1] = hessian[1,2];
+  hessian[2,2] = sum(Pi2*x^2); 
+  
+  return(-hessian);
+}
+
+#this function implements our own Newton-Raphson procedure
+getcoefNR <- function(response,explanatory,data)
+{
+  #2x1 matrix of coefficients`
+  beta = matrix(0,2,1);
+  y = data[,response];
+  x = data[,explanatory];
+  
+  #current value of log-likelihood
+  currentLoglik = logisticLoglik(y,x,beta);
+  
+  #infinite loop unless we stop it someplace inside
+  while(1)
+  {
+    newBeta = beta - solve(getHessian(y,x,beta))%*%getGradient(y,x,beta);
+    newLoglik = logisticLoglik(y,x,newBeta);
+    
+    #at each iteration the log-likelihood must increase
+    if(newLoglik<currentLoglik)
+    {
+      cat("CODING ERROR!!\n");
+      break;
+    }
+    beta = newBeta;
+    #stop if the log-likelihood does not improve by too much
+    if(newLoglik-currentLoglik<1e-6)
+    {
+      break; 
+    }
+    currentLoglik = newLoglik;
+  }
+  
+  return(beta);
+}
+```
+
+```{r}
+m_0 <- glm(inlf~exper,family=binomial(link=logit),data=df)
+
+coef_nr = getcoefNR(1, "exper", df)
+coef_mle = coef(m_0)
+coef_nr
+coef_mle
+```
+
+Based on Newton-Raphson algorithm, the MLEs are calculated correctly. A formula could be $logit(inlf) = -0.7692075 + 0.1052530 * exper$. The validity will be shown in plots as follows.
+
+```{r}
+myind = 1:length(df$inlf)
+plot(myind,m_0$fitted.values,xlab="Observation number",ylab="Fitted probabilities")
+points(myind[df$inlf==0],m_0$fitted.values[df$inlf==0],col="blue")
+points(myind[df$inlf==1],m_0$fitted.values[df$inlf==1],col="red")
+abline(h=0.5)
+```
+
+```{r}
+#determine the standardized residuals
+myres = (df$inlf-m_0$fitted.values)/sqrt(m_0$fitted.values*(1-m_0$fitted.values))
+
+#calculate the p-value for the chisq test
+1-pchisq(sum(myres^2),length(df$inlf)-length(coef(m_0)))
+
+#make an index plot of standardized residuals against observation number
+plot(1:length(df$inlf),myres,xlab="Observation number",ylab="Standardized Residual")
+```
+
+It turns out that the model does not fit the data well. For the fitted values, the prediction with a threshold of 0.5 show very slight predictive power. For the chi-squared test, the p value shows that the residuals tend to fall out in the extreme part of the distribution, therefore marking a bad fit. Easily seen from the plot, there are standarized residuals exceeding -2, indicating poor fit.
+
+## Question 5
+
+```{r}
+
+my_logit <- glm(inlf~.,family=binomial(link=logit),data=df)
+my_model <- step(my_logit,trace=TRUE)
+summary(my_model)
+
+```
+
+The final model based on AIC is shown above.
+
+## Question 6
+
+```{r}
+# retain all variables from previously chosen step model
+vars <- c("inlf", "kidslt6", "kidsge6", "educ", "huseduc", "huswage", "faminc",
+          "mtr", "exper", "expersq", "lage", "lhushrs")
+len_vars <-length(vars)
+vars_ind <- c(2:len_vars)
+df1 = df[, vars]
+
+# initialize some vectors
+p_val = c()
+model_bic = c()
+model_brier = c()
+
+for (i in 1:(len_vars - 1)){
+  vars_ind1 = vars_ind[-i]
+  model_temp = glm(inlf ~ as.matrix(df[, vars_ind1]), family=binomial(link=logit),data=df1)
+  
+  # calculate the p-value for the likelihood ratio test
+  p_val = c(p_val, 1-pchisq(model_temp$deviance - my_model$deviance , 1))
+  
+  # BIC
+  model_bic = c(model_bic, model_temp$deviance+model_temp$rank*log(length(df1$inlf)))
+  
+  # determine the residuals
+  my_res = df1$inlf-model_temp$fitted.values
+
+  # Brier
+  model_brier = c(model_brier, sum(my_res^2))
+}
+
+p_val
+```
+
+Since all the p-values from the likelihood ratio tests are 0, we favor the more complex model, which we have determined using the step function.
+
+## Question 7
+
+```{r}
+model_bic = c(model_bic, my_model$deviance+my_model$rank*log(length(df$inlf)))
+  
+model_bic
+```
+Still, the original step model contains lowest BIC.
+
+## Question 8
+
+```{r}
+# determine the standardized residuals
+my_res = df$inlf-my_model$fitted.values
+
+# Brier
+model_brier = c(model_brier, sum(my_res^2))
+
+model_brier
+```
+Still, the original step model contains lowest Brier number, indicating the best fit among the models.
+
+```{r}
+model_res = ifelse(my_model$fitted.values>=0.5, 1, 0)
+sum(model_res == df$inlf)/length(df$inlf)
+```
+
+The accuracy (predictive error) of my preferred model is 0.7715803.
+
+## Question 9
+
+```{r}
+summary(my_model)
+```
+
+One thing I learned from this analysis is that the step function can actually provide a good model in terms of AIC, BIC, and Brier score. I gained knowledge in variable selection. $logit(inlf) = 44.78 -1.307 * kidslt6 + 0.1825 * kidsge6 + 0.2051 * educ -0.06278 * huseduc -0.3550 * huswage + 3.280 * 10^{-5} * faminc -14.75 * mtr + 0.2079 * exper - 3.376 * 10^{-3} * expersq - 4.131 * lage -2.642 * lhushrs$.
+
+The interpretations are as follows. 
+
+The logit of inlf will change by -1.307 with one more kid under 6; The logit of inlf will change by 0.1825 with one more kid from 6-18; The logit of inlf will change by 0.2051 with one more year of schooling; The logit of inlf will change by -0.06278 with one more hour worked by husband.
+
+The logit of inlf will change by -0.3550 with one dollar increase in husband's hourly wage; The logit of inlf will change by 3.280 * 10^{-5} with one dollar increase in family income; The logit of inlf will change by -14.75 with one additional fed. marginal tax rate facing woman.
+
+The logit of inlf will change by 0.2079 with one more year of experience; The logit of inlf will change by - 3.376 * 10^{-3} with one unit increase in squared experience; The logit of inlf will change by - 4.131 with one unit increase in log wage; The logit of inlf will change by -2.642 with one unit increase in log husband hours.
+
+The significant coefficients include kidslt6, kidsge6, educ, huswage, mtr, exper, expersq, lage, lhushrs. 
