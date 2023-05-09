@@ -1,0 +1,121 @@
+---
+title: "Stat 536 HW2"
+author: "Dongyang Wang"
+date: "2022-10-14"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+```{r}
+rm(list = ls())
+
+mental_data <- read.table("mentalimpairment-data.txt",header=TRUE)
+
+alligator_data <- read.table("alligatorfood-data.txt",header=TRUE)
+
+```
+
+
+### Part A
+
+```{r}
+attach(mental_data)
+
+#first do not take into consideration the order
+library(nnet)
+M0 = multinom(Impairment ~ 1)
+Ms = multinom(Impairment ~ SES)
+Me = multinom(Impairment ~ Events)
+M = multinom(Impairment ~ SES + Events)
+
+1-pchisq(Me$deviance-M$deviance,length(coef(M))-length(coef(Me)))
+1-pchisq(Ms$deviance-M$deviance,length(coef(M))-length(coef(Ms)))
+
+detach(mental_data)
+```
+The above result from MRT shows that the event variable is significant but sec does not seem to matter. This is also supported based on model AIC (Me has lowest AIC).
+
+So the model selected only includes the events variable. The odds are calculated as follows:
+
+```{r}
+exp(1.673461 - 0.2673717 * 7)
+exp(1.202394 - 0.2835592 * 7)
+exp(2.453627 - 0.4847294 * 7)
+```
+
+That means, compared with being impaired, John is 82.02543% as likely to be mild, 45.72521% as likely to be moderate, 39.08315% as likely to be well.
+
+### Part B
+
+```{r}
+attach(mental_data)
+#now take the order into account
+library(MASS)
+
+Impairment = factor(Impairment,levels=c("Well","Mild","Moderate","Impaired"))
+
+orderM0 = polr(Impairment ~ 1)
+orderMs = polr(Impairment ~ SES)
+orderMe = polr(Impairment ~ Events)
+orderM = polr(Impairment ~ SES + Events)
+
+1-pchisq(orderMe$deviance-orderM$deviance,length(coef(orderM))-length(coef(orderMe)))
+1-pchisq(orderMs$deviance-orderM$deviance,length(coef(orderM))-length(coef(orderMs)))
+
+detach(mental_data)
+```
+Based on the p-values, SES can be removed from the model -- if we allow a significance level of 10% we might keep it as well but for simplicity we keep the 5% significance level. So, we are left with the model with only the events variable.
+
+Assuming logistic error, the results are calculated as follows:
+
+```{r}
+plogis(0.2614334 - 0.28793 * 7)
+plogis(1.6562752 - 0.28793 * 7) - plogis(0.2614334 - 0.28793 * 7)
+plogis(2.5876265 - 0.28793 * 7) - plogis(1.6562752 - 0.28793 * 7)
+1- plogis(2.5876265 - 0.28793 * 7)
+```
+
+John is 14.75338% well, 26.36111% mild, 22.81066% moderate, 36.07486% well.
+
+## Question 2
+
+```{r}
+attach(alligator_data)
+
+y = cbind(Fish,Invertebrate,Reptile,Bird,Other)
+
+
+M1 = multinom(y ~ 1)
+M2 = multinom(y ~ Lake)
+M3 = multinom(y ~ Gender)
+M4 = multinom(y ~ Size)
+M5 = multinom(y ~ Lake + Gender)
+M6 = multinom(y ~ Lake + Size)
+M7 = multinom(y ~ Gender + Size)
+M8 = multinom(y ~ Lake+Gender+Size)
+
+AIC(M1)
+AIC(M2)
+AIC(M3)
+AIC(M4)
+AIC(M5)
+AIC(M6)
+AIC(M7)
+AIC(M8)
+
+1-pchisq(M6$deviance-M8$deviance,length(coef(M8))-length(coef(M6)))
+
+detach(alligator_data)
+```
+Based on AIC and LRT, Lake and Size seem to be the only variables that are significant. Compared with alligators from Lake George with small size, the model would predict as follows:
+
+```{r}
+exp(-3.66588368 + 2.935296 + 0.3513836)
+```
+
+it is 68.44059% as likely to be reptile eater as to be a fish eater.

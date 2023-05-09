@@ -1,0 +1,17 @@
+Lake	Gender	Size	Fish	Invertebrate	Reptile	Bird	Other
+Hancock	Male	0	7	1	0	0	5
+Hancock	Male	1	4	0	0	1	2
+Hancock	Female	0	16	3	2	2	3
+Hancock	Female	1	3	0	1	2	3
+Oklawaha	Male	0	2	2	0	0	1
+Oklawaha	Male	1	13	7	6	0	0
+Oklawaha	Female	0	3	9	1	0	2
+Oklawaha	Female	1	0	1	0	1	0
+Trafford	Male	0	3	7	1	0	1
+Trafford	Male	1	8	6	6	3	5
+Trafford	Female	0	2	4	1	1	4
+Trafford	Female	1	0	1	0	0	0
+George	Male	0	13	10	0	2	2
+George	Male	1	9	0	0	1	2
+George	Female	0	3	9	1	0	1
+George	Female	1	8	1	0	0	1		
