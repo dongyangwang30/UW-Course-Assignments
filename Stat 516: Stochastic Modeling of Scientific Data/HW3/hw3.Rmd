@@ -1,0 +1,138 @@
+---
+title: "Stat 516 hw 3 Exercise 3"
+author: "Dongyang Wang"
+date: "10/24/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## a
+By observation of the tpm, we know we can return to any state i in finite time, i.e., $E_i(T_i) < \infty$.
+We therefore know positive recurrence. Since all states are connected, we know irreducibility.
+Also since the tpm has not been affected by time n, we know homogeneity. Therefore,
+by the theorem in Exercise 1, we know the markov chain has a stationary distribution.
+
+## b
+```{r}
+tpm <- matrix(c(0.5, 0.5, 0, 0, 0.2, 0.4, 0.4, 0, 0.1, 0.2, 0.4, 0.3, 0.3, 0.1, 0.3, 0.3), 
+              nrow = 4, ncol = 4,byrow=TRUE)
+tpm_original <- tpm
+for (i in 1:10){
+  tpm <- tpm %*% tpm
+  print(tpm)
+}
+tpm_star <- tpm
+```
+Yes, the tpm converges. We can observe that convergence stabilizes at $n=5$, and the tpm are the same for all later powers of P.
+The matrix $P^*$ is 
+```{r}
+tpm_star
+```
+And the following code returns a graph of the Frobenius norm vs n.
+```{r}
+tpm <- tpm_original
+norms_list <- rep(0,10)
+for (i in 1:10){
+  Fnorm <- norm(tpm - tpm_star, type = c("F") )
+  norms_list[i] <- Fnorm
+  tpm <- tpm %*% tpm
+}
+norms_list
+plot(1:10, norms_list)
+```
+The eigenvalues of P are
+```{r}
+ev <- eigen(tpm_original)
+ev_mod <- abs(ev$values)
+ev_mod
+```
+As we can observe, the second largest value is 0.3872983 We then obtain the plot of $|\lambda_2|^n$ vs n.
+```{r}
+second_ev <- 0.3872983
+ev1 <- rep(0,10)
+for(i in 1:10){
+  ev1[i] <- (0.3872983)^i
+}
+plot(1:10, ev1)
+```
+As we can easily observe, the resulting plot looks very similar to the only before.
+
+## 3
+```{r}
+set.seed(123)
+initial <- rep(0.25,4)
+number = 0
+tpm <- tpm_original
+for(i in 1:10000){
+  initial <- initial %*% tpm
+  index1 <- rbinom(1,1,initial[1,4])
+  number = number + index1
+}
+number/10000
+
+initial <- rep(0.25,4)
+number = 0
+tpm <- tpm_original
+for(i in 1:1000000){
+  initial <- initial %*% tpm
+  index1 <- rbinom(1,1,initial[1,4])
+  number = number + index1
+}
+number/1000000
+```
+We set up the initial distribution as a uniform distribution, with a probability of 0.25 for each possible state.
+After the simulation, we can observe that the probability of having dreams approaches the stationary distribution probability for the REM phase, i.e., 0.1212121. In fact, if we make the number of simulations larger, the result would be closer--I have provided an example for simulating 1,000,000 times.
+Therefore, $S_n$ will converge as $n \rightarrow +\infty$. By the ergodic theorem, it converges to $\pi_i$.
+```{r}
+set.seed(123)
+initial <- rep(0.25,4)
+number = 0
+tpm <- tpm_original
+number_vector <- rep(0,10000)
+s_star <- rep(0,10000)
+for(i in 1:10000){
+  initial <- initial %*% tpm
+  index1 <- rbinom(1,1,initial[1,4])
+  number = number + index1
+  number_vector[i] <- number
+  s_star[i] = i * 0.1212121
+}
+plot(1:10000, number_vector - s_star)
+```
+The plot revolves around 0 as simulations increase. Although my plot now seems to show a downward trend, but if I increase the number of simulations by 100 times, we can see the the deviation from 0 actually increases no more than 10 times. That is convergence we can observe. There is potentially some difference due to the limited number of digits in 0.1212121 which is not 100% accurate, but it is sufficient for our purposes of no more than 1 million simulations.
+
+```{r}
+set.seed(123)
+initial <- rep(0.25,4)
+number = 0
+tpm <- tpm_original
+number_vector <- rep(0,1000000)
+s_star <- rep(0,1000000)
+for(i in 1:1000000){
+  initial <- initial %*% tpm
+  index1 <- rbinom(1,1,initial[1,4])
+  number = number + index1
+  number_vector[i] <- number
+  s_star[i] = i * 0.1212121
+}
+plot(1:1000000, number_vector - s_star)
+```
+
+## 4
+```{r}
+tpm1 <- matrix(c(0.5, 0.5, 0, 0, 0.2, 0.4, 0.4, 0, 0.1, 0.2, 0.4, 0.3, 0.3, 0.1, 0.3, 0.3), 
+              nrow = 4, ncol = 4,byrow=TRUE)
+y <- diag(4)
+z <- t(y -tpm1)
+z
+z[4,] = c(1,1,1,1)
+a <- solve(z)
+a[,4]
+```
+Therefore, we have calculated the stationary distribution probabilities. Namely 0.2626263 0.3333333 0.2828283 0.1212121.
+
+## 5
+Since 3 days is equivalent to 288 cycles of 15 minutes, it is sufficient time for the tpm to reach steady states. Also, according to Theorem 6.4, lambda2^288 approaches zero so the tpm converges to the stationary distribution. So the answer is yes, the chain converged to a stationary distribution. The probability that she was having a nightmare is the probability that she is in Phase 4, which is 0.1212121 as calculated earlier.
