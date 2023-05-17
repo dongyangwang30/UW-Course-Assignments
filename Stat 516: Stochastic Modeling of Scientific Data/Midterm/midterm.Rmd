@@ -1,0 +1,47 @@
+---
+title: "mt"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+```{r}
+#1
+tpm <- matrix(c(1/3, 1/3, 1/3,0, 0, 1/3, 1/3, 1/3, 1/3,1/3,1/3,0,1/3,1/3,1/3,0), byrow = T, nrow = 4)
+tpm
+y <- diag(4)
+z <- t(y -tpm)
+z
+z[4,] = c(1,1,1,1)
+a <- solve(z)
+a[,4]
+```
+
+## 2
+```{r}
+#2
+tpm1 <- matrix(c(0.5,0.5,0,0.5,0,0.5,0.2,0,0.8), byrow = T, nrow = 3)
+tpm1
+y1 <- diag(3)
+z1 <- t(y1 -tpm1)
+z1
+z1[3,] = c(1,1,1)
+a1 <- solve(z1)
+a1[,3]
+```
+
+## 3
+```{r}
+#2
+tpm2 <- matrix(c(0.5,0.5,0.25,0.75), byrow = T, nrow = 2)
+tpm2
+y2 <- diag(2)
+z2 <- t(y2 -tpm2)
+z2
+z2[2,] = c(1,1)
+a2 <- solve(z2)
+a2[,2]
+```
