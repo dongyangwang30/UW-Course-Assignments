@@ -1,0 +1,143 @@
+---
+title: "Stat 516 hw 1 Exercise 6"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1
+
+```{r results = 'hide'}
+library(dplyr)
+library(ggplot2)
+
+#wd
+getwd()
+setwd('/Users/dongyangwang/Desktop/UW/Stat 516/HW/HW1')
+#get January data
+precipitation <- read.delim('snoqualmie_falls.txt', header = FALSE, sep ='')
+precipitation <- precipitation[, 1:31]
+
+for(i in 1:nrow(precipitation)){
+  for(j in 1:ncol(precipitation)){
+    if ( precipitation[i,j] >0){
+      precipitation[i,j] <- 1
+    }
+  }
+}
+#precipitation 
+attach(precipitation)
+year <- c(1948:1983)
+```
+```{r}
+#1
+heatmap(t(as.matrix(precipitation)), scale = "none", Colv = NA, Rowv = NA,
+        xlab="year", ylab="days of January",col = c('white', 'black'))
+?heatmap
+```
+
+```{r}
+#2
+no_rain = 0
+total = 31*36
+for(i in 1:nrow(precipitation)){
+  for(j in 1:ncol(precipitation)){
+    if ( precipitation[i,j] ==0){
+      no_rain <- no_rain + 1
+    }
+  }
+}
+p_rain <- (total-no_rain)/total
+binom.test(total-no_rain, total, p_rain)
+```
+p is then modeled as 0.7087814 with the 95% confidence interval 
+[0.6811522, 0.7353051].
+
+```{r}
+#3
+precipitation1 <- precipitation
+for(i in 1:nrow(precipitation1)){
+  for(j in 1:ncol(precipitation1)){
+    precipitation1[i,j] = rbinom(1,1,0.7087814)
+  }
+}
+heatmap(t(as.matrix(precipitation1)), scale = "none", Colv = NA, Rowv = NA,
+        xlab="year", ylab="days of January",col = c('white', 'black'))
+
+```
+```{r}
+#4
+p00 = 0
+p01 = 0
+p10 = 0
+p11 = 0
+for(i in 1:nrow(precipitation1)){
+  for(j in 2:ncol(precipitation1)){
+    if(precipitation1[i,j-1] == 0){
+      if(precipitation1[i,j] ==0){
+        p00 = p00 +1
+      }
+      else{
+        p01 = p01 +1
+      }
+    }
+    if(precipitation1[i,j-1] == 1){
+      if(precipitation1[i,j] ==0){
+        p10 = p10 +1
+      }
+      else{
+        p11 = p11 +1
+      }
+    }
+  }
+}
+#not rain to not rain
+p00
+#not rain to rain
+p01
+#rain to not rain
+p10
+#rain to rain
+p11
+tpm <- matrix(c(p00/(p00+p01), p01/(p00+p01), p10/(p10+p11), p11/(p10+p11)), 
+              nrow = 2, ncol = 2,byrow=TRUE)
+tpm
+```
+
+
+```{r}
+#5
+precipitation2 <- precipitation
+for (i in 1:36){
+  precipitation2[i,1] <- rbinom(1,1,0.5)
+}
+for(i in 1:nrow(precipitation2)){
+  for(j in 2:ncol(precipitation1)){
+    if(precipitation1[i,j-1] == 0){
+      precipitation2[i,j] <- rbinom(1,1,0.7260147)
+      }
+    if(precipitation1[i,j-1] == 1){
+      precipitation2[i,j] <- rbinom(1,1,0.7294253)
+    }
+  }
+}
+heatmap(t(as.matrix(precipitation2)), scale = "none", Colv = NA, Rowv = NA,
+        xlab="year", ylab="days of January",col = c('white', 'black'))
+```
+
+```{r}
+#6
+for (i in 2:20){
+  tpm <- tpm %*% tpm
+  print(tpm)
+}
+```
+After the first day, the model would not be informative because the tpm will 
+stay the same since day 2. This is probably due to that we constructed the 
+matrix with an assumption of one step Markov chian.
+
+```{r include = FALSE}
+#So happy!!!!!!!!!!! Done one day before ddl. 11:15pm on Oct 11,2021! This most difficult hw so far has been defeated!(hopefully correctly) To celebrate, do some other hw!
+```
