@@ -1,0 +1,65 @@
+---
+title: "HW2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 5
+
+```{r}
+set.seed(1000)
+x <- c(3)
+while(x[length(x)] != 0  & x[length(x)] != 10){
+  if(rbinom(1,1,0.5) == 1){
+    x <- c(x, x[length(x)]+1)
+    if(x[length(x)] == 10){
+      break
+    }
+  }
+  else{
+    x <- c(x, x[length(x)]-1)
+    if(x[length(x)] == 0){
+      break
+    }
+  }
+}
+plot(x)
+lines(x)
+```
+
+
+```{r}
+set.seed(1000)
+x <- c(3)
+x1 = c()
+x10 = 0
+probs1 <- seq(0.1,0.9, length =9)
+for(p in probs1){
+  for(i in 1:10000){
+    while(x[length(x)] != 0  & x[length(x)] != 10){
+      if(rbinom(1,1,p) == 1){
+        x <- c(x, x[length(x)]+1)
+        if(x[length(x)] == 10){
+          x10 = x10 + 1
+          x = c(3)
+          break
+    }
+  }
+      else{
+        x <- c(x, x[length(x)]-1)
+        if(x[length(x)] == 0){
+          x = c(3)
+          break
+    }
+  }
+}
+  }
+  x1 <- c(x1,x10)
+  x10 = 0
+}
+plot(probs1,x1)
+lines(probs1, x1)
+```
