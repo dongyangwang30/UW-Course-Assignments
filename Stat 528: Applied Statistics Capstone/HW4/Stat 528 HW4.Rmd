@@ -1,0 +1,214 @@
+---
+title: "Stat 528 HW1"
+author: "Dongyang Wang"
+date: "2023-01-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+```{r}
+rm(list=ls())
+set.seed(42)
+
+beta = rnorm(50, 0, 1)
+n_vector = c(50, 100, 200, 400)
+```
+
+```{r}
+library(mvtnorm)
+n = 50
+nx = 50
+
+# data generation
+x = rmvnorm(n, mean = rep(0, nx), sigma = diag(nx))
+e = rnorm(n, 0, 1)
+y = 3* tanh(beta*x) + e
+
+
+```
+
+
+### Question 1.2
+
+```{r, warning = F, message=FALSE}
+#required package
+library(mvtnorm)
+library(randomForest)
+library(xtable)
+#n
+n_all=c(50,100,200,400)
+#simulate beta=(beta_1,...,beta_50)ˆT (50*1)
+beta=rnorm(n=50,mean=0,sd=1)
+#(1)
+#function for 100 times simulation for a particular n 
+one_n=function(i)
+{
+#determine n
+n=n_all[i]
+  #simulate data and run regression (repeat N times)
+result=do.call(rbind,lapply(c(1:100),function(rept) {
+    #simulate X, each column is a \vec{X}=(x1,...,x50)ˆT, have n X (n columns) (50*n)
+X=t(rmvnorm(n+1,mean=rep(0,50),sigma=diag(50))) #simulate error term
+    epsilon=rnorm(n+1,mean=0,sd=1)
+    #generate y=3*tanh(betaˆT*X)+epsilon
+    fix_effect=as.vector(t(beta)%*%X)
+    y=3*tanh(fix_effect)+epsilon
+    #combine the dataset
+simdata=as.data.frame(cbind(y,t(X))) #learn OLS with i=1,2,...,n/2
+M=lm(y~.,data=simdata[1:(n/2),]) #compute residuals for i=n/2+1,...,n
+R=abs(y[(n/2+1):n]-predict(M,newdata=simdata[(n/2+1):n,])) #90% (alpha=0.1) prediction interval for y_{n+1}
+C=predict(M,newdata=simdata[n+1,])+c(-1,1)*quantile(R,0.9) #whether y_{n+1}\in C
+    cover=y[n+1]>=C[1] & y[n+1]<=C[2]
+    #output results
+    data.frame(cover=cover,C_lower=C[1],C_upper=C[2])
+  }
+))
+  #cat('Finish',i,'in',100,'\n')
+  #calculate average coverage rate and average 90% CI
+  result=apply(result,2,mean)
+  return(result)
+}
+
+#run 100 trials and output results
+results=NULL 
+for (i in 1:4){
+  results=rbind(results,one_n(i))
+}
+xtable(results)
+
+```
+
+```{r}
+#(2)
+#function for 100 times simulation for a particular n 
+one_n=function(i)
+{
+#determine n
+n=n_all[i]
+  #simulate data and run regression (repeat N times)
+result=do.call(rbind,lapply(c(1:100),function(rept) {
+    #simulate X, each column is a \vec{X}=(x1,...,x50)ˆT, have n X (n columns) (50*n)
+X=t(rmvnorm(n+1,mean=rep(0,50),sigma=diag(50))) #simulate error term
+    epsilon=rnorm(n+1,mean=0,sd=1)
+    #generate y=3*tanh(betaˆT*X)+epsilon
+    fix_effect=as.vector(t(beta)%*%X)
+    y=3*tanh(fix_effect)+epsilon
+    #combine the dataset
+simdata=as.data.frame(cbind(y,t(X))) #learn random forest with i=1,2,...,n/2
+M=randomForest(y~.,type='regression',data=simdata[1:(n/2),],ntree=1000,mtry=5) #compute residuals for i=n/2+1,...,n
+R=abs(y[(n/2+1):n]-predict(M,newdata=simdata[(n/2+1):n,])) #90% (alpha=0.1) prediction interval for y_{n+1}
+C=predict(M,newdata=simdata[n+1,])+c(-1,1)*quantile(R,0.9) #whether y_{n+1}\in C
+cover=y[n+1]>=C[1] & y[n+1]<=C[2] #output results
+7
+data.frame(cover=cover,C_lower=C[1],C_upper=C[2])
+  }
+  ))
+  #cat('Finish',i,'in',100,'\n')
+  #calculate average coverage rate and average 90% CI
+  result=apply(result,2,mean)
+  return(result)
+}
+#run 100 trials and output results
+results=NULL 
+for (i in 1:4){
+  results=rbind(results,one_n(i))
+}
+xtable(results)
+```
+
+\newpage
+
+## Question 2
+
+### Question 2.1
+
+```{r}
+# Load data
+url <- "https://web.stanford.edu/~hastie/CASI_files/DATA/prostz.txt"
+df <- scan(url)
+```
+
+```{r}
+#calculate p-values
+p_value=2*pnorm(abs(df),lower.tail=FALSE)
+
+#plot histogram 
+hist(p_value,breaks=20,ylim=c(0,500),xlab='p-value',main = "Histogram of p-values", 
+)
+```
+
+### Question 2.2
+
+```{r}
+#Bonferroni
+a=0.05 
+a_star=0.05/length(p_value)
+cat("Significant genes under Bonferroni correction:", 
+    which(p_value<=a_star))
+
+#Holm’s procedure
+p_value_sorted=sort(p_value,decreasing=F) 
+threshold=a/(length(p_value)-1:length(p_value)+1) 
+i0=min(which(p_value_sorted>threshold))
+cat("Significant genes under Holm’s procedure:", 
+    which(p_value <= max(p_value_sorted[1:(i0-1)])))
+
+#FDR control
+a=0.1
+I=(1:length(p_value))*a/length(p_value)
+R=max(which(p_value_sorted<=I))
+P_T=p_value_sorted[R]
+cat("Significant genes under FDR control:", 
+    which(p_value<=P_T))
+
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("qvalue")
+library(qvalue)
+
+#Storey’s q-values
+cat("Significant genes under pFDR control:", 
+    which(qvalue(p_value, fdr.level = 0.1)$significant == TRUE))
+```
+
+
+### Question 2.3
+
+```{r}
+
+```
+
+\newpage
+
+## Question 3
+
+```{r}
+p_vals = c(0.0011, 0.031, 0.017, 0.32, 0.11, 0.9, 0.07, 0.006, 0.004, 0.0009)
+p_vals < 0.005
+
+p_ordered = p_vals[order(p_vals)]
+```
+
+```{r}
+p_ordered
+q = 0.05
+j = seq(1, 10)
+thres = q*j/10
+p_ordered < thres
+which(p_vals  %in% p_ordered[p_ordered < thres])
+```
+
+```{r}
+p_ordered
+q = 0.2
+j = seq(1, 10)
+thres = q*j/10
+p_ordered[sum(p_ordered < thres)]
+which(p_vals <= p_ordered[sum(p_ordered < thres)])
+#which(p_vals  %in% p_ordered[p_ordered < thres])
+```
