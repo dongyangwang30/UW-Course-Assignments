@@ -1,0 +1,300 @@
+---
+title: "Stat 571 HW1"
+author: "Dongyang Wang"
+date: "2023-01-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+Under the random intercept model, since $var(Y) = 1 = \theta + \sigma^2$ and $corr(Y_{ij}, Y_{ik}) = \rho = \frac{\theta}{\theta + \sigma^2}$, we solve the equations and get $\theta = \rho$ and $\sigma^2 = 1 - \rho$. In this way, we can generate the x, e, b seperately and use a linear relationship we choose to generate the y values, without the need to sample y directly but achieving the same results.
+
+```{r}
+rm(list=ls())
+set.seed(42)
+library(mvtnorm)
+library(lme4)
+
+# For testing
+m = 10
+n = 5
+p = 0.5
+
+gen.one <- function(m,n,p){
+  
+  total = m*n
+  
+  # Set beta to 0.5
+  beta1 = 0.5
+  beta0 = 1
+  
+  # Get variance for Y
+  #cov_mat = matrix(c(rep(p,total^2)), ncol = total)
+  #for (i in 1:total){
+  #  cov_mat[i,i] = 1
+  #}
+  
+  # Generate the variables
+  x = rnorm(total, 0, 1)
+  b = rep(rnorm(m, mean = 0, sd = sqrt(p)),n)
+  e = rnorm(total, mean = 0, sd = sqrt(1-p))
+  y = beta0 + beta1*x + b + e
+  
+  # Linear regression
+  linear_model = lm(y~x)
+  linear_coef0 = coef(linear_model)[1]
+  linear_coef1 = coef(linear_model)[2]
+  linear_bias0 = linear_coef0 - beta0
+  linear_bias1 = linear_coef1 - beta1
+  conf_linear = confint(linear_model)
+  linear_cov0 = as.numeric(conf_linear[1,1] < beta0 & beta0 < conf_linear[1,2])
+  linear_cov1 = as.numeric(conf_linear[2,1] < beta1 & beta1 < conf_linear[2,2])
+  
+  # LMM
+  lmm = lmer(y ~ x + (1|b))
+  lmm_coef0 = fixef(lmm)[1]
+  lmm_coef1 = fixef(lmm)[2]
+  lmm_bias0 = lmm_coef0 - beta0
+  lmm_bias1 = lmm_coef1 - beta1
+  conf_lmm = confint.merMod(lmm, method = "Wald")
+  lmm_cov0 = as.numeric(conf_lmm[3,1] < beta0 & beta0 < conf_lmm[3,2])
+  lmm_cov1 = as.numeric(conf_lmm[4,1] < beta1 & beta1 < conf_lmm[4,2])
+  
+  return(c(linear_coef0, linear_coef1, linear_bias0, linear_bias1, 
+           linear_cov0, linear_cov1, lmm_coef0, lmm_coef1, 
+           lmm_bias0, lmm_bias1, lmm_cov0, lmm_cov1))
+}
+
+```
+
+```{r, warning=F, message = F}
+nsim = 500
+m = seq(5,25,10)
+n = seq(5,25,10)
+p = seq(0.1,0.9,0.4)
+
+results <- vector("list", length = length(m) * length(n)) 
+for (i in 1:length(m)){
+  
+  for (j in 1:length(n)){
+    result <- c()
+    for (k in 1:length(p)){
+      res <- replicate(nsim, gen.one(m[i],n[j],p[k]))
+      mean_res <- rowMeans(res)
+      result <- c(result, m[i],n[j],p[k],mean_res)
+    }
+    result <- matrix(result, ncol = 15, byrow = T)
+    results[[(i-1)*length(m) + j]] = result
+  }
+  
+}
+
+#results
+```
+
+```{r, eval = F}
+# For testing
+m = 10
+n = 5
+p = 0.5
+
+res <- replicate(10, gen.one(m,n,p))
+mean_res <- rowMeans(res)
+result <- c(result, mean_res)
+```
+
+```{r}
+#total_len = length(m) * length(n) * length(p)
+#m_var = rep(m, total_len/length(m))
+#n_var = rep(n, total_len/length(n))
+#p_var = rep(p, total_len/length(p))
+
+result_df = do.call(rbind.data.frame, results)
+#result_df_res = cbind(m_var, n_var,p_var,result_df)
+
+colnames(result_df) = c("m", "n", "p", "linear_coef0", "linear_coef1", 
+                            "linear_bias0", "linear_bias1", "linear_cov0", 
+                            "linear_cov1", "lmm_coef0", "lmm_coef1", 
+                            "lmm_bias0", "lmm_bias1", "lmm_cov0", "lmm_cov1")
+result_df
+```
+
+```{r}
+library(ggplot2)
+attach(result_df)
+boxplot(linear_bias0, lmm_bias0, main = "Comparison of Linear Model 
+        vs LMM regarding Beta 0 Bias")
+boxplot(linear_bias1, lmm_bias1, main = "Comparison of Linear Model
+        vs LMM regarding Beta 1 Bias")
+boxplot(linear_cov0, lmm_cov0, main = "Comparison of Linear Model 
+        vs LMM regarding Beta 0 Coverage")
+boxplot(linear_cov1, lmm_cov1, main = "Comparison of Linear Model 
+        vs LMM regarding Beta 1 Coverage")
+ggplot(data=result_df, aes(x=m, y=linear_cov0))+geom_point(lwd=1)+
+  facet_grid(cols=vars(n),rows=vars(p))
+
+ggplot(data=result_df, aes(x=m, y=lmm_cov0))+geom_point(lwd=1)+
+  facet_grid(cols=vars(n),rows=vars(p))
+
+ggplot(data=result_df, aes(x=m, y=linear_cov1))+geom_point(lwd=1)+
+  facet_grid(cols=vars(n),rows=vars(p))
+
+ggplot(data=result_df, aes(x=m, y=lmm_cov1))+geom_point(lwd=1)+
+  facet_grid(cols=vars(n),rows=vars(p))
+
+
+detach(result_df)
+```
+In this simulation analysis, I set up 2 models. The simple model is the independent model of simple linear regression, which assumes independence between the response and the independent variable. The second model assumes correlation and is LMM. For the first part, the type I error is defined as the probability of rejecting the null hypothesis when it is true. In other words, given our null hypothesis provided by $\beta_0 = 1$ and $\beta_1 = 0.5$, we want to estimate how often the first model fails to cover those two true values with the 95 % confidence interval. As for the second model, I will check the bias (how much the estimation deviates from the true parameters) as well as the confidence interval coverage.
+
+For completeness, I have included all the metrics for both models, namely beta estimations, biases, and confidence interval coverage for both parameters. As a result, given the table and box plots above, we can easily observe the following. As we can easily observe from the results above, the coverage for the LMM is significantly better than the results from the simple linear regression, which ignores the fact that there are some correlation in the data. The bias, on the other hand, is significantly lower for the LMM model both for beta 1. Also, for beta 0, the coverage of linear regression if off by a lot, but the LMM works pretty well. However, the coverage for beta 1 are about the same, and the bias for beta 0 are about the same. The reason is probably that since in both cases they are linear models, the slope beta 1 can be captured easily. But since the random effect b has been treated as some noise in the simple linear regression, the estimation for that would be a bit off.
+
+Also shown on the last four graphs, we can see that the only clear trend that is here is as n increases, coverage for beta 0 of linear regression decreases significantly. Ohter than this, there is no clear relationship yet regarding coverage with respect to m,n,p in my result.
+
+## Question 2
+
+```{r}
+
+# For testing
+m = 10
+n = 5
+p = 0.5
+
+gen.logi <- function(m,n,p){
+  
+  total = m*n
+  
+  # Set beta to 0.5
+  beta1 = 0.5
+  beta0 = 1
+  
+  # Generate the variables
+  #x = rnorm(total, 0,  1)
+  #b = rep(rnorm(m, mean = 2, sd = 3),n)
+  #e = rnorm(total, mean = 0, sd = 5)
+  #expo = beta0 + beta1*x + b + e
+  #prob_y = exp(expo)/(1+exp(expo))
+  #temp_y = runif(total)
+  #y = ifelse(temp_y >= prob_y, 0, 1)
+  
+  # Generate the variables
+  x = rnorm(total, 0, 1)
+  b = rep(rnorm(m, mean = 0, sd = sqrt(p)),n)
+  e = rnorm(total, mean = 0, sd = sqrt(1-p))
+  expo = beta0 + beta1*x + b + e
+  prob_y = exp(expo)/(1+exp(expo))
+  temp_y = runif(total)
+  y = ifelse(temp_y >= prob_y, 0, 1)
+  
+  # Linear regression
+  logi_model = glm(y ~ x, family = "binomial")
+  logi_coef0 = coef(logi_model)[1]
+  logi_coef1 = coef(logi_model)[2]
+  logi_bias0 = logi_coef0 - beta0
+  logi_bias1 = logi_coef1 - beta1
+  conf_logi = confint(logi_model)
+  logi_cov0 = as.numeric(conf_logi[1,1] < beta0 & beta0 < conf_logi[1,2])
+  logi_cov1 = as.numeric(conf_logi[2,1] < beta1 & beta1 < conf_logi[2,2])
+  
+  # LMM
+  lmm = glmer(y ~ x  + (1 | b), family = binomial(link = "logit"), 
+              control = glmerControl(tolPwrss=1e-3))
+  lmm_coef0 = fixef(lmm)[1]
+  lmm_coef1 = fixef(lmm)[2]
+  lmm_bias0 = lmm_coef0 - beta0
+  lmm_bias1 = lmm_coef1 - beta1
+  conf_lmm = confint.merMod(lmm, method = "Wald")
+  lmm_cov0 = as.numeric(conf_lmm[2,1] < beta0 & beta0 < conf_lmm[2,2])
+  lmm_cov1 = as.numeric(conf_lmm[3,1] < beta1 & beta1 < conf_lmm[3,2])
+  
+  return(c(logi_coef0, logi_coef1, logi_bias0, logi_bias1, logi_cov0, logi_cov1, 
+           lmm_coef0, lmm_coef1, lmm_bias0, lmm_bias1, lmm_cov0, lmm_cov1))
+}
+
+```
+
+
+```{r, warning= F, message= F}
+nsim = 500
+m = seq(5,15,5)
+n = seq(5,15,5)
+p = 0.5
+
+results1 <- vector("list", length = length(m) * length(n)) 
+for (i in 1:length(m)){
+  
+  for (j in 1:length(n)){
+    result <- c()
+    for (k in 1:length(p)){
+      res <- replicate(nsim, gen.logi(m[i],n[j],p[k]))
+      mean_res <- rowMeans(res)
+      result <- c(result, m[i],n[j],p[k], mean_res)
+    }
+    result <- matrix(result, ncol = 15, byrow = T)
+    results1[[(i-1)*length(m) + j]] = result
+  }
+  
+}
+#results1
+```
+
+
+
+```{r}
+#total_len = length(m) * length(n) * length(p)
+#m_var = rep(m, total_len/length(m))
+#n_var = rep(n, total_len/length(n))
+#p_var = rep(p, total_len/length(p))
+
+result_df1 = do.call(rbind.data.frame, results1)
+#result_df_res1 = cbind(m_var, n_var,p_var,result_df1)
+result_df1
+colnames(result_df1) = c("m", "n", "p", "logi_coef0", "logi_coef1", 
+                            "logi_bias0", "logi_bias1", "logi_cov0", 
+                            "logi_cov1", "lmm_coef0", "lmm_coef1", 
+                            "lmm_bias0", "lmm_bias1", "lmm_cov0", "lmm_cov1")
+result_df1
+```
+
+
+```{r}
+library(ggplot2)
+attach(result_df1)
+boxplot(logi_bias0, lmm_bias0, main = "Comparison of Logistic Model 
+        vs LMM regarding Beta 0 Bias")
+boxplot(logi_bias1, lmm_bias1, main = "Comparison of Logistic Model 
+        vs LMM regarding Beta 1 Bias")
+boxplot(logi_cov0, lmm_cov0, main = "Comparison of Logistic Model 
+        vs LMM regarding Beta 0 Coverage")
+boxplot(logi_cov1, lmm_cov1, main = "Comparison of Logistic Model 
+        vs LMM regarding Beta 1 Coverage")
+ggplot(data=result_df1, aes(x=m, y=logi_cov0))+geom_point(lwd=1)+
+  facet_grid(cols=vars(m),rows=vars(n))
+
+ggplot(data=result_df1, aes(x=m, y=lmm_cov0))+geom_point(lwd=1)+
+  facet_grid(cols=vars(m),rows=vars(n))
+
+ggplot(data=result_df1, aes(x=m, y=logi_cov1))+geom_point(lwd=1)+
+  facet_grid(cols=vars(m),rows=vars(n))
+
+ggplot(data=result_df1, aes(x=m, y=lmm_cov1))+geom_point(lwd=1)+
+  facet_grid(cols=vars(m),rows=vars(n))
+
+
+detach(result_df1)
+```
+
+Based on the results above, we have obtained similar insight as from the previous question. When the data is correlated, we should better use the correlated model rather than the independent model. This time, the coverage and biases for the GLMM is strongly preferable to those of the simple logistic model. The improvement in the beta 1 is potentially due to the non linear relationship, as compared with the linear case in question 1. There are no obvious trend in terms of m,n values though.
+
+## Question 3
+
+If we do have multiple outcomes, we can definitely take a weighted average of the ourcome measures. But there are indeed a few pros and cons to this approach. The benefits of doing this weighted approach include: (1) easy to practice, (2) easy to explain, (3) contains all necessary/important information. To provide more detail, taking a weighted average makes things really easy. Since all we need to do is to do a bunch of calculations linearly, we save a lot of time compared with devising a complicated statistical model or gathering data. Furthermore, it is easy to let the audience know what the aggregate outcome variable contains and basically what information is in there with this approach. It's simply mixing the importance of all the different variables and make a comprehensive conclusion. Furthermore, it does not miss out some potential important information since everything is covered.
+
+There are however some downsides to this approach. For example, (1) we do not know the proper ways to assign the weights; (2) many fields cannot be combined together since practically that would not make sense; (3) the association and causation relationships can be blurred. To provide more details, first I would emphasize that we do not know a priori how much weight to assign to each of the variables, all we can do is guess or make they weights equal. This, however, would very likely not reflect the reality: the true relationships might be that some outcomes have more play as a result of the independent variables while other outcomes are just subsidiary. Moreover, many fields are totally separate and cannot be linked together by force. We can not mix multiple outcomes and make them just one just for the convenience of computation in most cases: for example, we can't mix a person's income, mortality, happiness all together just by using weights if those are the things we would like to model. In addition, given multiple outcomes, the associations between the independent variables and the outcome can really be blurred. Especially when there are a lot of outcome variables, since the outcome variables themselves might be related to each other.
+
+Given the pros and cons discussed above, the best time to use this weighted approach is when the benefits can be best exemplified and the costs can be minimized. That is, when the multivariate outcomes are correlated in a manner that they carry similar pratical sense, and seem equally important in our research, and the relationships are pretty clear, we can take advantage of the ease of modelling in this manner. Otherwise, we should be very cautious when applying this approach.
+
