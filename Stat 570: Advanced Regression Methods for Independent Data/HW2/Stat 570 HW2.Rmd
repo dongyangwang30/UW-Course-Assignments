@@ -1,0 +1,545 @@
+---
+title: "Stat 570 HW2"
+author: "Dongyang Wang"
+date: "2022-10-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+```{r, echo=FALSE}
+rm(list = ls())
+library(sn)
+set.seed(42)
+
+n1 <- 15
+n2 <- 40
+beta <- c(3, -3)
+methods = c("norm", "unif", "skew")
+
+gen_bias_var <- function(n = n1, method, b0 = beta[1], b1 = beta[2]){
+  
+  x <- rnorm(n, 20, 2)
+  
+  # Epsilon
+  if (method == "norm"){
+    epsilon <- rnorm(n, 0, 2)
+  }
+  else if (method == "unif"){
+    epsilon <- runif(n, -5, 5)
+  }
+  else if (method == "skew"){
+    epsilon <- rsn(n = n, xi=5/sqrt(1+5^2)*sqrt(2/pi), omega=1, alpha=5)
+  }
+  
+  y <- b0 + b1 * x + epsilon
+  
+  X <- cbind(1, x)
+  
+  # Q1
+  beta_hat <- solve(t(X) %*% X) %*% t(X) %*% y
+  
+  # Q2
+  y_hat <- X %*% beta_hat
+  sig_hat <- sum((y-y_hat)^2)/(n-2)
+  beta_sd <- sqrt(diag(sig_hat * solve(t(X)%*%X)))
+
+  return(list(beta = beta_hat, sd = beta_sd))
+}
+
+gen_one <- function(n){
+  result = matrix(NA, nrow = 4, ncol = 3)
+  colnames(result) = methods
+  
+  for (i in methods){
+    res = gen_bias_var(n, method = i)
+    result[,i] = c(res$beta, res$sd)
+  }
+  
+  return(as.vector(result))
+}
+
+result_15 <- replicate(10000, gen_one(15))
+result_40 <- replicate(10000, gen_one(40))
+```
+
+```{r, echo=FALSE}
+
+gen_result <- function(result, method, n){
+if(method=="norm") {
+res <- result[1:4,]
+}else if(method=="unif") {
+res <- result[5:8,]
+}else if(method=="skew") {
+res <- result[9:12,]
+}
+
+t.stat <- res[1:2,]/res[3:4,]
+ci1 <- res[1,] +  res[3,] %o% c(qt(0.1,df=n-2), qt(0.9,df=n-2))
+ci2 <- res[2,] +  res[4,] %o% c(qt(0.1,df=n-2), qt(0.9,df=n-2))
+cover1 <- beta[1] >= ci1[,1] & beta[1] <= ci1[,2]
+cover2 <- beta[2] >= ci2[,1] & beta[2] <= ci2[,2]
+
+mean <- apply(res,1,mean)
+var <- apply(res,1,var)
+var.hat <- apply(res^2,1,mean)
+
+final_res <- cbind(bias=abs(mean[1:2]-c(beta[1], beta[2])),var=var[1:2],
+                  var.hat=var.hat[3:4], cover=c(mean(cover1),mean(cover2)))
+
+return(final_res)
+}
+```
+
+The following tables include with sample size 15, the results for bias, variance of the standard deviation,     sampling distribution estimate for variance, and coverage.
+```{r, echo=FALSE}
+gen_result(result_15, method = "norm", n =n1)
+gen_result(result_15, method = "unif", n =n1)
+gen_result(result_15, method = "skew", n =n1)
+
+```
+
+The following tables include with sample size 40, the results for bias, variance of the standard deviation,     sampling distribution estimate for variance, and coverage.
+
+```{r, echo=FALSE}
+gen_result(result_40, method = "norm", n =n2)
+gen_result(result_40, method = "unif", n =n2)
+gen_result(result_40, method = "skew", n =n2)
+```
+
+Based on the results above, 
+
+### a
+
+The biases are 0.
+
+### b
+
+The variance converges.
+
+### c
+
+The coverage has been indicated by the variable cover. Normality will be checked as follows:
+
+With sample size 15,
+
+```{r, echo=FALSE}
+qqnorm(result_15[1,], main = "Normal Error Beta 0 Q-Q Plot")
+qqline(result_15[1,])
+
+qqnorm(result_15[2,], main = "Normal Error Beta 1 Q-Q Plot")
+qqline(result_15[2,])
+
+qqnorm(result_15[5,], main = "Uniform Error Beta 0 Q-Q Plot")
+qqline(result_15[5,])
+
+qqnorm(result_15[6,], main = "Uniform Error Beta 1 Q-Q Plot")
+qqline(result_15[6,])
+
+qqnorm(result_15[9,], main = "Skew Error Beta 0 Q-Q Plot")
+qqline(result_15[9,])
+
+qqnorm(result_15[10,], main = "Skew Error Beta 1 Q-Q Plot")
+qqline(result_15[10,])
+```
+
+With sample size 40,
+
+```{r, echo=FALSE}
+qqnorm(result_40[1,], main = "Normal Error Beta 0 Q-Q Plot")
+qqline(result_40[1,])
+
+qqnorm(result_40[2,], main = "Normal Error Beta 1 Q-Q Plot")
+qqline(result_40[2,])
+
+qqnorm(result_40[5,], main = "Uniform Error Beta 0 Q-Q Plot")
+qqline(result_40[5,])
+
+qqnorm(result_40[6,], main = "Uniform Error Beta 1 Q-Q Plot")
+qqline(result_40[6,])
+
+qqnorm(result_40[9,], main = "Skew Error Beta 0 Q-Q Plot")
+qqline(result_40[9,])
+
+qqnorm(result_40[10,], main = "Skew Error Beta 1 Q-Q Plot")
+qqline(result_40[10,])
+```
+
+### d
+
+The skewed normal errors seem to break the least squares, although the expectation is 0 but hte confidence interval fails to cover the true parameters 80% of the time.
+
+## Question 2
+
+### a
+
+#### Likelihood function
+$L(\beta) =  \Pi^{n}_{i=1} \lambda_i e^{-\lambda_1 y} = \Pi^{n}_{i=1} exp({\beta_0 +\beta_1 x_i - e^{\beta_0 + \beta_1x_i} y_i})$
+
+#### Log likelihood function
+$l(\beta) = \sum^n_{i = 1} \log(\lambda_i) - \lambda_iy_i = \sum^n_{i = 1} {\beta_0 +\beta_1 x_i - e^{\beta_0 + \beta_1x_i} y_i} = n\beta_0 + \beta_1 \sum^n_{i=1}x_i - e^{\beta_0} \sum^n_{i=1}e^{\beta_1x_i} y_i$
+
+#### Score function
+Taking derivative wrt $\beta_0$, $\frac{dl(\beta)}{d\beta_0} =  n- e^{\beta_0} \sum^n_{i=1}e^{\beta_1x_i} y_i$;
+Taking derivative wrt $\beta_1$, $\frac{dl(\beta)}{d\beta_1} =  \sum^n_{i=1}x_i - e^{\beta_0} \sum^n_{i=1}x_ie^{\beta_1x_i} y_i$
+
+#### FIM
+
+With $E(y_i) = \frac{1}{\lambda_i} = e^{-\beta_0 -\beta_1x_i}$,
+
+Taking derivative wrt score function:
+$I_{11} = - E(- e^{\beta_0} \sum^n_{i=1}e^{\beta_1x_i} y_i) =  e^{\beta_0} \sum^n_{i=1}e^{\beta_1x_i} E(y_i) = n$,
+
+$I_{12} = - E(- e^{\beta_0} \sum^n_{i=1}x_i e^{\beta_1x_i} y_i) =  e^{\beta_0} \sum^n_{i=1} x_i e^{\beta_1x_i} E(y_i) = \sum^n_{i=1}x_i$,
+
+$I_{21} = - E(- e^{\beta_0} \sum^n_{i=1}x_i e^{\beta_1x_i} y_i) =  e^{\beta_0} \sum^n_{i=1} x_i e^{\beta_1x_i} E(y_i) = \sum^n_{i=1}x_i$,
+
+$I_{22} = - E(- e^{\beta_0} \sum^n_{i=1}x_i^2 e^{\beta_1x_i} y_i) =  e^{\beta_0} \sum^n_{i=1} x_i^2 e^{\beta_1x_i} E(y_i) = \sum^n_{i=1}x_i^2$
+
+### b
+Setting score functions to 0,
+$n- e^{\beta_0} \sum^n_{i=1}e^{\beta_1x_i} y_i = 0$ renders $\hat{\beta_0} = \log\frac{n}{\sum^n_{i=1}e^{\beta_1x_i} y_i}$
+and
+$0 = \sum^n_{i=1}x_i - e^{\beta_0} \sum^n_{i=1}x_ie^{\beta_1x_i} y_i$ and there is no closed form for $\hat{\beta_1}$
+
+### c
+
+```{r, echo=FALSE}
+x <- c( 6.2, 4.2, 0.5, 8.8, 1.5, 9.2, 8.5, 8.7, 6.7, 6.5, 6.3, 6.7, 0.2, 8.7, 7.5 )
+y <- c( 0.8, 3.5, 12.4, 1.1, 8.9, 2.4, 0.1, 0.4, 3.5, 8.3, 2.6, 1.5, 16.6, 0.1, 1.4)
+
+log_likelihood <- function(x = x, y = y, beta0 = 0, beta1 = 0){
+  n <- length(x)
+  n*beta0 + beta1*sum(x) - sum(exp(beta0+beta1*x)*y)
+}
+
+max_lik <- function(beta){
+  -log_likelihood(x,y,beta[1],beta[2])
+}
+
+# mle
+mle <- matrix(optim(par=c(0,0),fn=max_lik)$par, nrow =1)
+
+# asymptotic cov
+theoretical_cov = solve(matrix(c(length(x), sum(x), sum(x), sum(x^2)), nrow = 2, ncol = 2))
+theoretical_ci = matrix(c(mle - matrix(qnorm(.975)*sqrt(diag(theoretical_cov)), nrow = 1),mle + matrix(qnorm(.975)*sqrt(diag(theoretical_cov)), nrow = 1)),nrow =2)
+
+# empirical cov
+
+empirical_cov = solve(matrix(c(sum( exp( mle[1,1]+ mle[1,2] *x)*y),
+                             sum( x*y*exp(mle[1,1]+ mle[1,2]*x)),
+                             sum( x*y*exp(mle[1,1]+ mle[1,2]*x)),
+                             sum( x^2*y*exp(mle[1,1]+ mle[1,2]*x))), nrow = 2, ncol = 2))
+empirical_ci = matrix(c(mle - matrix(qnorm(.975)*sqrt(diag(empirical_cov)), nrow = 1),mle + matrix(qnorm(.975)*sqrt(diag(empirical_cov)), nrow = 1)),nrow =2)
+```
+
+The likelihood is
+```{r}
+mle
+```
+
+The Covariance (theoretical) and confidence interval are 
+```{r}
+theoretical_cov
+theoretical_ci
+```
+
+The Covariance (empirical) and confidence interval are 
+```{r}
+empirical_cov
+empirical_ci
+```
+
+### d
+
+We can observe the distribution of the log likelihood as we fix beta 0 or beta 1.
+
+```{r, echo=FALSE}
+b0 = seq(empirical_ci[1,1], empirical_ci[1,2], length.out = 1000)
+b1 = seq(empirical_ci[2,1], empirical_ci[2,2],  length.out = 1000)
+
+log_lik_b1_fix = c()
+log_lik_b0_fix = c()
+
+for (i in 1:1000){
+  log_lik_b1_fix = c(log_lik_b1_fix, log_likelihood(x,y, beta0 = b0[i], beta1 = mle[1,2]))
+  log_lik_b0_fix = c(log_lik_b0_fix, log_likelihood(x,y, beta0 = mle[1,1], beta1 = b1[i]))
+}
+
+plot(b0, log_lik_b1_fix)
+plot(b1, log_lik_b0_fix)
+```
+
+
+### e
+
+Plugging in, $\hat{\beta_0} = \log\frac{n}{\sum^n_{i=1}e^{\beta_1x_i} y_i} = \log\frac{n}{\sum^n_{i=1} y_i}$ with value
+
+```{r, echo=FALSE}
+beta_0_null = log(length(x)/sum(y))
+beta_0_null
+```
+
+### f
+
+```{r, echo=FALSE}
+
+# null mle
+null_mle = matrix(c(beta_0_null, 0) , nrow = 2)
+
+score <- function(x, y, beta0 = beta_0_null, beta1 = 0){
+  n <- length(x)
+  S1 <- n - sum(exp(beta0+beta1*x)*y)
+  S2 <- sum(x) - sum(x*y*exp(beta0+beta1*x))
+  return(c(S1, S2))
+}
+
+score_function = matrix(score(x, y), nrow = 2)
+
+# score test
+null_cov = solve(matrix(c(sum( exp( null_mle[1,1]+ null_mle[2,1] *x)*y),
+                             sum( x*y*exp(null_mle[1,1]+ null_mle[2,1]*x)),
+                             sum( x*y*exp(null_mle[1,1]+ null_mle[2,1]*x)),
+                             sum( x^2*y*exp(null_mle[1,1]+ null_mle[2,1]*x))), nrow = 2, ncol = 2))
+chi_stat = as.vector(t(score_function) %*% solve(null_cov) %*% score_function)
+chi_pvalue = 1 - pchisq(chi_stat, 1)
+
+# likelihood ratio
+likeli_stat = -2 * (log_likelihood(x,y,beta_0_null,0) - log_likelihood(x,y,mle[1,1],mle[1,2]))
+likeli_pvalue = 1 - pchisq(likeli_stat, 1)
+
+# Wald
+diff_mle = t(mle) - null_mle
+walt_stat = as.vector(t(diff_mle) %*% solve(theoretical_cov) %*% diff_mle)
+wald_pvalue = 1 - pchisq(walt_stat, 1)
+
+```
+
+The following are chi-squared, LR test, and Wald test p-values.
+```{r}
+chi_pvalue
+likeli_pvalue
+wald_pvalue
+```
+
+### g
+
+Based on the results above, three tests all show that the predictor significantly matters and we reject the null hypothesis that the contaminant is not associated with survival time. In terms of estimation, one unit increase in the concentration of the contaminant is associated with a 0.3012588 increase in $\log \lambda_i$, i.e., a $e^{-0.3012588} = 0.7398863$ proportion of the original survival time (without that unit of contamination).
+
+```{r, include = FALSE}
+exp(-0.3012588)
+```
+
+## Appendix
+
+### Q1
+
+```{r echo = T, eval=FALSE}
+rm(list = ls())
+library(sn)
+set.seed(42)
+
+n1 <- 15
+n2 <- 40
+beta <- c(3, -3)
+methods = c("norm", "unif", "skew")
+
+gen_bias_var <- function(n = n1, method, b0 = beta[1], b1 = beta[2]){
+  
+  x <- rnorm(n, 20, 2)
+  
+  # Epsilon
+  if (method == "norm"){
+    epsilon <- rnorm(n, 0, 2)
+  }
+  else if (method == "unif"){
+    epsilon <- runif(n, -5, 5)
+  }
+  else if (method == "skew"){
+    epsilon <- rsn(n = n, xi=5/sqrt(1+5^2)*sqrt(2/pi), omega=1, alpha=5)
+  }
+  
+  y <- b0 + b1 * x + epsilon
+  
+  X <- cbind(1, x)
+  
+  # Q1
+  beta_hat <- solve(t(X) %*% X) %*% t(X) %*% y
+  
+  # Q2
+  y_hat <- X %*% beta_hat
+  sig_hat <- sum((y-y_hat)^2)/(n-2)
+  beta_sd <- sqrt(diag(sig_hat * solve(t(X)%*%X)))
+
+  return(list(beta = beta_hat, sd = beta_sd))
+}
+
+gen_one <- function(n){
+  result = matrix(NA, nrow = 4, ncol = 3)
+  colnames(result) = methods
+  
+  for (i in methods){
+    res = gen_bias_var(n, method = i)
+    result[,i] = c(res$beta, res$sd)
+  }
+  
+  return(as.vector(result))
+}
+
+result_15 <- replicate(10000, gen_one(15))
+result_40 <- replicate(10000, gen_one(40))
+
+gen_result <- function(result, method, n){
+if(method=="norm") {
+res <- result[1:4,]
+}else if(method=="unif") {
+res <- result[5:8,]
+}else if(method=="skew") {
+res <- result[9:12,]
+}
+
+t.stat <- res[1:2,]/res[3:4,]
+ci1 <- res[1,] +  res[3,] %o% c(qt(0.1,df=n-2), qt(0.9,df=n-2))
+ci2 <- res[2,] +  res[4,] %o% c(qt(0.1,df=n-2), qt(0.9,df=n-2))
+cover1 <- beta[1] >= ci1[,1] & beta[1] <= ci1[,2]
+cover2 <- beta[2] >= ci2[,1] & beta[2] <= ci2[,2]
+
+mean <- apply(res,1,mean)
+var <- apply(res,1,var)
+var.hat <- apply(res^2,1,mean)
+
+final_res <- cbind(bias=abs(mean[1:2]-c(beta[1], beta[2])),var=var[1:2],
+                  var.hat=var.hat[3:4], cover=c(mean(cover1),mean(cover2)))
+
+return(final_res)
+}
+
+gen_result(result_15, method = "norm", n =n1)
+gen_result(result_15, method = "unif", n =n1)
+gen_result(result_15, method = "skew", n =n1)
+
+gen_result(result_40, method = "norm", n =n2)
+gen_result(result_40, method = "unif", n =n2)
+gen_result(result_40, method = "skew", n =n2)
+
+qqnorm(result_15[1,], main = "Normal Error Beta 0 Q-Q Plot")
+qqline(result_15[1,])
+
+qqnorm(result_15[2,], main = "Normal Error Beta 1 Q-Q Plot")
+qqline(result_15[2,])
+
+qqnorm(result_15[5,], main = "Uniform Error Beta 0 Q-Q Plot")
+qqline(result_15[5,])
+
+qqnorm(result_15[6,], main = "Uniform Error Beta 1 Q-Q Plot")
+qqline(result_15[6,])
+
+qqnorm(result_15[9,], main = "Skew Error Beta 0 Q-Q Plot")
+qqline(result_15[9,])
+
+qqnorm(result_15[10,], main = "Skew Error Beta 1 Q-Q Plot")
+qqline(result_15[10,])
+
+qqnorm(result_40[1,], main = "Normal Error Beta 0 Q-Q Plot")
+qqline(result_40[1,])
+
+qqnorm(result_40[2,], main = "Normal Error Beta 1 Q-Q Plot")
+qqline(result_40[2,])
+
+qqnorm(result_40[5,], main = "Uniform Error Beta 0 Q-Q Plot")
+qqline(result_40[5,])
+
+qqnorm(result_40[6,], main = "Uniform Error Beta 1 Q-Q Plot")
+qqline(result_40[6,])
+
+qqnorm(result_40[9,], main = "Skew Error Beta 0 Q-Q Plot")
+qqline(result_40[9,])
+
+qqnorm(result_40[10,], main = "Skew Error Beta 1 Q-Q Plot")
+qqline(result_40[10,])
+```
+
+### Q2
+```{r echo = T, eval=FALSE}
+x <- c( 6.2, 4.2, 0.5, 8.8, 1.5, 9.2, 8.5, 8.7, 6.7, 6.5, 6.3, 6.7, 0.2, 8.7, 7.5 )
+y <- c( 0.8, 3.5, 12.4, 1.1, 8.9, 2.4, 0.1, 0.4, 3.5, 8.3, 2.6, 1.5, 16.6, 0.1, 1.4)
+
+log_likelihood <- function(x = x, y = y, beta0 = 0, beta1 = 0){
+  n <- length(x)
+  n*beta0 + beta1*sum(x) - sum(exp(beta0+beta1*x)*y)
+}
+
+max_lik <- function(beta){
+  -log_likelihood(x,y,beta[1],beta[2])
+}
+
+# mle
+mle <- matrix(optim(par=c(0,0),fn=max_lik)$par, nrow =1)
+
+# asymptotic cov
+theoretical_cov = solve(matrix(c(length(x), sum(x), sum(x), sum(x^2)), nrow = 2, ncol = 2))
+theoretical_ci = matrix(c(mle - matrix(qnorm(.975)*sqrt(diag(theoretical_cov)), nrow = 1),mle + matrix(qnorm(.975)*sqrt(diag(theoretical_cov)), nrow = 1)),nrow =2)
+
+# empirical cov
+
+empirical_cov = solve(matrix(c(sum( exp( mle[1,1]+ mle[1,2] *x)*y),
+                             sum( x*y*exp(mle[1,1]+ mle[1,2]*x)),
+                             sum( x*y*exp(mle[1,1]+ mle[1,2]*x)),
+                             sum( x^2*y*exp(mle[1,1]+ mle[1,2]*x))), nrow = 2, ncol = 2))
+empirical_ci = matrix(c(mle - matrix(qnorm(.975)*sqrt(diag(empirical_cov)), nrow = 1),mle + matrix(qnorm(.975)*sqrt(diag(empirical_cov)), nrow = 1)),nrow =2)
+
+b0 = seq(empirical_ci[1,1], empirical_ci[1,2], length.out = 1000)
+b1 = seq(empirical_ci[2,1], empirical_ci[2,2],  length.out = 1000)
+
+log_lik_b1_fix = c()
+log_lik_b0_fix = c()
+
+for (i in 1:1000){
+  log_lik_b1_fix = c(log_lik_b1_fix, log_likelihood(x,y, beta0 = b0[i], beta1 = mle[1,2]))
+  log_lik_b0_fix = c(log_lik_b0_fix, log_likelihood(x,y, beta0 = mle[1,1], beta1 = b1[i]))
+}
+
+plot(b0, log_lik_b1_fix)
+plot(b1, log_lik_b0_fix)
+
+beta_0_null = log(length(x)/sum(y))
+beta_0_null
+
+
+# null mle
+null_mle = matrix(c(beta_0_null, 0) , nrow = 2)
+
+score <- function(x, y, beta0 = beta_0_null, beta1 = 0){
+  n <- length(x)
+  S1 <- n - sum(exp(beta0+beta1*x)*y)
+  S2 <- sum(x) - sum(x*y*exp(beta0+beta1*x))
+  return(c(S1, S2))
+}
+
+score_function = matrix(score(x, y), nrow = 2)
+
+# score test
+null_cov = solve(matrix(c(sum( exp( null_mle[1,1]+ null_mle[2,1] *x)*y),
+                             sum( x*y*exp(null_mle[1,1]+ null_mle[2,1]*x)),
+                             sum( x*y*exp(null_mle[1,1]+ null_mle[2,1]*x)),
+                             sum( x^2*y*exp(null_mle[1,1]+ null_mle[2,1]*x))), nrow = 2, ncol = 2))
+chi_stat = as.vector(t(score_function) %*% solve(null_cov) %*% score_function)
+chi_pvalue = 1 - pchisq(chi_stat, 1)
+
+# likelihood ratio
+likeli_stat = -2 * (log_likelihood(x,y,beta_0_null,0) - log_likelihood(x,y,mle[1,1],mle[1,2]))
+likeli_pvalue = 1 - pchisq(likeli_stat, 1)
+
+# Wald
+diff_mle = t(mle) - null_mle
+walt_stat = as.vector(t(diff_mle) %*% solve(theoretical_cov) %*% diff_mle)
+wald_pvalue = 1 - pchisq(walt_stat, 1)
+
+chi_pvalue
+likeli_pvalue
+wald_pvalue
+```
